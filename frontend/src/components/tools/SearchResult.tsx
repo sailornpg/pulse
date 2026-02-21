@@ -41,7 +41,7 @@ export function SearchResult({ result, args }: SearchResultProps) {
     return (
       <div className="p-3 space-y-2">
         <div className="text-zinc-500 text-[11px] italic">
-          未找到相关搜索结果，以下是本次搜索的参数：
+          以下是本次搜索的参数：
         </div>
         <div className="bg-black/30 rounded-lg p-3 border border-zinc-800/50">
            <pre className="text-[10px] text-zinc-400 font-mono whitespace-pre-wrap">

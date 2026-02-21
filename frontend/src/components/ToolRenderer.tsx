@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Loader2, CheckCircle2, Clock, Zap } from 'lucide-react';
+import { Loader2, CheckCircle2, Clock, Zap, ChevronDown } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { WeatherResult } from './tools/WeatherResult';
 import { TimeResult } from './tools/TimeResult';
 import { CalcResult } from './tools/CalcResult';
@@ -14,7 +15,7 @@ const TOOL_COMPONENTS: Record<string, React.ComponentType<{ result: any; args?: 
   tavily_research: SearchResult,
 };
 
-// 工具调用的“思考中”话术阶段
+// 工具调用的"思考中"话术阶段
 const THINKING_PHASES = [
   "正在初始化网络检索进程...",
   "正在访问多个全球数据来源...",
@@ -31,18 +32,44 @@ interface ToolRendererProps {
   result?: any;
 }
 
-// 模块级缓存，确保组件卸载重装（AI 持续输出导致的消息列表更新）时耗时数据不丢失
+// 模块级缓存，确保组件卸载重装时耗时数据不丢失
 const durationCache: Record<string, { start: number; duration?: number }> = {};
+// 记录已自动收起的卡片 ID，防止重挂载时重复触发动画
+const autoCollapsedIds = new Set<string>();
+// 最大缓存条数，超出时淘汰最旧的记录
+const MAX_CACHE = 200;
+function trimCache() {
+  const keys = Object.keys(durationCache);
+  if (keys.length > MAX_CACHE) keys.slice(0, keys.length - MAX_CACHE).forEach(k => delete durationCache[k]);
+  if (autoCollapsedIds.size > MAX_CACHE) {
+    const it = autoCollapsedIds.values();
+    for (let i = 0; i < autoCollapsedIds.size - MAX_CACHE; i++) autoCollapsedIds.delete(it.next().value);
+  }
+}
 
 export function ToolRenderer({ toolName, toolCallId, state, args, result }: ToolRendererProps) {
   const [elapsed, setElapsed] = useState<number>(0);
   const [phaseIdx, setPhaseIdx] = useState(0);
+  const [isExpanded, setIsExpanded] = useState(() => !autoCollapsedIds.has(toolCallId));
 
   // 检查缓存
   if (state === 'call' && !durationCache[toolCallId]) {
+    trimCache();
     durationCache[toolCallId] = { start: Date.now() };
   }
   const cached = durationCache[toolCallId];
+
+  // 工具执行完毕后延迟 50ms 自动收起（仅首次）
+  useEffect(() => {
+    if (state === 'result' && !autoCollapsedIds.has(toolCallId)) {
+      const t = setTimeout(() => {
+        trimCache();
+        autoCollapsedIds.add(toolCallId);
+        setIsExpanded(false);
+      }, 50);
+      return () => clearTimeout(t);
+    }
+  }, [state, toolCallId]);
 
   // 1. 计时器与阶段切换
   useEffect(() => {
@@ -52,7 +79,7 @@ export function ToolRenderer({ toolName, toolCallId, state, args, result }: Tool
       const currentElapsed = (Date.now() - cached.start) / 1000;
       setElapsed(currentElapsed);
       
-      // 每隔 2 秒自动切换话术阶段，增加“过程感”
+      // 每隔 2 秒自动切换话术阶段，增加"过程感"
       setPhaseIdx(prev => {
         const next = Math.floor(currentElapsed / 2);
         return next < THINKING_PHASES.length ? next : THINKING_PHASES.length - 1;
@@ -69,7 +96,7 @@ export function ToolRenderer({ toolName, toolCallId, state, args, result }: Tool
 
   const displayDuration = state === 'call' ? elapsed : (cached?.duration || 0);
 
-  // 1. 加载状态展示 (更丰富的状态)
+  // 1. 加载状态展示
   if (state === 'call') {
     return (
       <div className="mt-4 p-5 bg-zinc-950/80 backdrop-blur-md rounded-2xl border border-blue-500/20 shadow-[0_0_20px_rgba(59,130,246,0.1)] flex flex-col gap-4">
@@ -105,39 +132,65 @@ export function ToolRenderer({ toolName, toolCallId, state, args, result }: Tool
     );
   }
 
-  // 2. 结果状态展示 (更专业的卡片)
+  // 2. 结果状态展示（带展开/收起）
   if (state === 'result') {
     const Component = TOOL_COMPONENTS[toolName];
     
     return (
-      <div className="mt-4 p-5 bg-zinc-950 rounded-2xl border border-zinc-800/80 hover:border-zinc-700/80 transition-all duration-500 shadow-xl group">
-        <div className="flex items-center justify-between mb-5">
+      <div className="mt-4 bg-zinc-950 rounded-2xl border border-zinc-800/80 hover:border-zinc-700/80 transition-colors duration-300 shadow-xl overflow-hidden">
+        {/* 卡片头部（点击可展开/收起） */}
+        <button
+          onClick={() => setIsExpanded(prev => !prev)}
+          className="w-full flex items-center justify-between p-5 text-left group"
+        >
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 border border-emerald-500/20">
-                <CheckCircle2 size={16} />
+            <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 border border-emerald-500/20 shrink-0">
+              <CheckCircle2 size={16} />
             </div>
             <div>
-                <h3 className="text-[13px] font-bold text-zinc-100">执行成功</h3>
-                <p className="text-[10px] text-zinc-500 font-mono uppercase tracking-tighter">Tool ID: {toolCallId}</p>
+              <h3 className="text-[13px] font-bold text-zinc-100">执行成功</h3>
+              <p className="text-[10px] text-zinc-500 font-mono uppercase tracking-tighter">Tool ID: {toolCallId}</p>
             </div>
           </div>
-          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-zinc-900 rounded-lg border border-zinc-800 text-[10px] text-zinc-400 font-mono shadow-inner">
-            <Clock size={10} className="text-zinc-600" />
-            <span>处理耗时: <span className="text-zinc-200">{displayDuration.toFixed(1)}s</span></span>
-          </div>
-        </div>
 
-        <div className="relative overflow-hidden rounded-xl bg-zinc-900/20 p-1 border border-zinc-800/30">
-            {Component ? (
-              <Component result={result} args={args} />
-            ) : (
-              <div className="p-3">
-                <pre className="text-[10px] bg-black/40 p-3 rounded-lg overflow-x-auto text-zinc-400 font-mono border border-zinc-900/50">
-                  {JSON.stringify(result, null, 2)}
-                </pre>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-zinc-900 rounded-lg border border-zinc-800 text-[10px] text-zinc-400 font-mono shadow-inner">
+              <Clock size={10} className="text-zinc-600" />
+              <span>处理耗时: <span className="text-zinc-200">{displayDuration.toFixed(1)}s</span></span>
+            </div>
+            <div className={`w-6 h-6 rounded-md flex items-center justify-center text-zinc-500 group-hover:text-zinc-300 transition-all duration-300 ${isExpanded ? 'rotate-180' : ''}`}>
+              <ChevronDown size={14} />
+            </div>
+          </div>
+        </button>
+
+        {/* 可折叠内容区 */}
+        <AnimatePresence initial={false}>
+          {isExpanded && (
+            <motion.div
+              key="content"
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+              style={{ overflow: 'hidden' }}
+            >
+              <div className="px-5 pb-5">
+                <div className="relative overflow-hidden rounded-xl bg-zinc-900/20 p-3 border border-zinc-800/30">
+                  {Component ? (
+                    <Component result={result} args={args} />
+                  ) : (
+                    <div className="p-3">
+                      <pre className="text-[10px] bg-black/40 p-3 rounded-lg overflow-x-auto text-zinc-400 font-mono border border-zinc-900/50">
+                        {JSON.stringify(result, null, 2)}
+                      </pre>
+                    </div>
+                  )}
+                </div>
               </div>
-            )}
-        </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     );
   }
