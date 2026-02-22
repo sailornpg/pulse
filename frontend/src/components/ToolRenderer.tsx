@@ -43,7 +43,10 @@ function trimCache() {
   if (keys.length > MAX_CACHE) keys.slice(0, keys.length - MAX_CACHE).forEach(k => delete durationCache[k]);
   if (autoCollapsedIds.size > MAX_CACHE) {
     const it = autoCollapsedIds.values();
-    for (let i = 0; i < autoCollapsedIds.size - MAX_CACHE; i++) autoCollapsedIds.delete(it.next().value);
+    for (let i = 0; i < autoCollapsedIds.size - MAX_CACHE; i++) {
+      const next = it.next();
+      if (next.value) autoCollapsedIds.delete(next.value);
+    }
   }
 }
 
@@ -148,7 +151,10 @@ export function ToolRenderer({ toolName, toolCallId, state, args, result }: Tool
               <CheckCircle2 size={16} />
             </div>
             <div>
-              <h3 className="text-[13px] font-bold text-zinc-100">执行成功</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-[13px] font-bold text-zinc-100">执行成功</h3>
+                <h3 className='text-[10px] text-zinc-500 font-mono uppercase tracking-tighter'>({toolName})</h3>
+              </div>
               <p className="text-[10px] text-zinc-500 font-mono uppercase tracking-tighter">Tool ID: {toolCallId}</p>
             </div>
           </div>

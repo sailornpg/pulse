@@ -1,7 +1,7 @@
 import { useChat } from 'ai/react';
 import type { Message } from 'ai';
 
-import { Terminal, Loader2, Plus, MessageSquare, User, Settings, Layout, Send, Sparkles, Command } from 'lucide-react';
+import { Terminal, Loader2, Plus, MessageSquare, User, Settings, Layout, Send, Sparkles, Command, LogOut, Trash2, LogIn } from 'lucide-react';
 import { ToolRenderer } from './components/ToolRenderer';
 import ReactMarkdown from 'react-markdown';
 import { Button } from "@/components/ui/button"
@@ -12,7 +12,22 @@ import { Separator } from "@/components/ui/separator"
 import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
 import { motion, AnimatePresence } from 'framer-motion';
-import { useEffect, useRef, memo } from 'react';
+import { useEffect, useRef, memo, useState } from 'react';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { API_URL } from './lib/supabase';
+import LoginPage from './pages/LoginPage';
+
+interface Conversation {
+  id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface User {
+  id: string;
+  email: string;
+}
 
 const MessageList = memo(function MessageList({ messages, isLoading }: { messages: Message[], isLoading: boolean }) {
   return (
@@ -44,7 +59,6 @@ const MessageList = memo(function MessageList({ messages, isLoading }: { message
           >
             <div className={`flex gap-5 ${m.role === 'user' ? 'flex-row-reverse max-w-[85%]' : 'w-full'}`}>
               <div className="flex-1 space-y-4 min-w-0">
-                {/* 顺序部件渲染 (Sequential Rendering) */}
                 {m.role === 'assistant' && (m as any).parts ? (
                   (m as any).parts.map((part: any, i: number) => {
                     if (part.type === 'text') {
@@ -55,20 +69,25 @@ const MessageList = memo(function MessageList({ messages, isLoading }: { message
                       );
                     }
                     if (part.type === 'tool-invocation') {
+                      const ti = part.toolInvocation;
                       return (
                         <div 
                           key={part.toolCallId}
                           className="animate-in fade-in duration-300"
                         >
-                          {/* @ts-ignore */}
-                          <ToolRenderer {...part.toolInvocation} />
+                          <ToolRenderer 
+                            toolName={ti.toolName}
+                            toolCallId={ti.toolCallId}
+                            state={ti.state === 'result' ? 'result' : 'call'}
+                            args={ti.args}
+                            result={ti.result}
+                          />
                         </div>
                       );
                     }
                     return null;
                   })
                 ) : (
-                  /* 回退渲染 (用户消息 & 兼容旧模式) */
                   <>
                     <div className={`prose prose-zinc dark:prose-invert max-w-none ${
                       m.role === 'user' 
@@ -79,10 +98,15 @@ const MessageList = memo(function MessageList({ messages, isLoading }: { message
                     </div>
                     {m.toolInvocations && (
                       <div className="space-y-3">
-                        {m.toolInvocations.map((toolInvocation) => (
+                        {m.toolInvocations.map((toolInvocation: any) => (
                           <div key={toolInvocation.toolCallId} className="animate-in fade-in duration-300">
-                            {/* @ts-ignore */}
-                            <ToolRenderer {...toolInvocation} />
+                            <ToolRenderer 
+                              toolName={toolInvocation.toolName}
+                              toolCallId={toolInvocation.toolCallId}
+                              state={toolInvocation.state === 'result' ? 'result' : 'call'}
+                              args={toolInvocation.args}
+                              result={toolInvocation.result}
+                            />
                           </div>
                         ))}
                       </div>
@@ -111,10 +135,32 @@ const MessageList = memo(function MessageList({ messages, isLoading }: { message
   );
 });
 
-export default function App() {
-  const { messages, input, handleInputChange, handleSubmit, isLoading } = useChat({
-    api: 'http://localhost:3001/chat',
+function ChatApp({ user, token, onLoginClick }: { user: User | null, token: string | null, onLoginClick: () => void }) {
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(() => {
+    return localStorage.getItem('currentConversationId');
+  });
+  const [isLoadingConversations, setIsLoadingConversations] = useState(false);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+
+  useEffect(() => {
+    if (currentConversationId) {
+      localStorage.setItem('currentConversationId', currentConversationId);
+    } else {
+      localStorage.removeItem('currentConversationId');
+    }
+  }, [currentConversationId]);
+
+  const { messages, input, handleInputChange, handleSubmit, setMessages, isLoading } = useChat({
+    api: `${API_URL}/chat`,
+    body: { conversationId: currentConversationId },
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
     initialInput: '',
+    onFinish: (message) => {
+      if (message.role === 'assistant') {
+        loadConversations();
+      }
+    },
   });
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -128,63 +174,201 @@ export default function App() {
     }
   }, [messages]);
 
+  const loadConversations = async () => {
+    if (!token) return;
+    setIsLoadingConversations(true);
+    try {
+      const res = await fetch(`${API_URL}/history/conversations`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setConversations(data);
+        if (data.length > 0 && !currentConversationId) {
+          setCurrentConversationId(data[0].id);
+        }
+      }
+    } catch (err) {
+      console.error("加载会话失败:", err);
+    } finally {
+      setIsLoadingConversations(false);
+    }
+  };
+
+  useEffect(() => {
+    if (token) {
+      loadConversations();
+    }
+  }, [token]);
+
+  const loadMessages = async (conversationId: string) => {
+    if (!token) return;
+    setIsLoadingMessages(true);
+    try {
+      const res = await fetch(`${API_URL}/history/conversations/${conversationId}/messages`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const formattedMessages: Message[] = data.map((msg: any) => ({
+          id: msg.id,
+          role: msg.role as 'user' | 'assistant',
+          content: msg.content || '',
+          parts: msg.parts,
+        }));
+        setMessages(formattedMessages);
+        setCurrentConversationId(conversationId);
+      }
+    } catch (err) {
+      console.error("加载消息失败:", err);
+    } finally {
+      setIsLoadingMessages(false);
+    }
+  };
+
+  const handleNewConversation = () => {
+    setMessages([]);
+    setCurrentConversationId(null);
+    localStorage.removeItem('currentConversationId');
+  };
+
+  const handleSelectConversation = (conv: Conversation) => {
+    loadMessages(conv.id);
+  };
+
+  const handleDeleteConversation = async (convId: string) => {
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_URL}/history/conversations/${convId}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        if (currentConversationId === convId) {
+          handleNewConversation();
+        }
+        loadConversations();
+      }
+    } catch (err) {
+      console.error("删除会话失败:", err);
+    }
+  };
+
+  const { logout } = useAuth();
+
+  const handleSignOut = async () => {
+    await logout();
+  };
+
+  const getUserInitial = (email: string) => {
+    return email.charAt(0).toUpperCase();
+  };
+
+  const getUserName = (email: string) => {
+    return email.split('@')[0];
+  };
+
   return (
     <div className="flex h-screen bg-zinc-950 text-foreground overflow-hidden font-sans selection:bg-emerald-500/10 selection:text-emerald-400">
-      {/* 1. 左侧侧边栏 (Sidebar) - 重构为极简风格 */}
-      <aside className="w-72 bg-zinc-950 border-r border-zinc-900 flex flex-col hidden md:flex shrink-0">
+      <aside className="bg-zinc-950 border-r border-zinc-900 flex flex-col hidden md:flex shrink-0">
         <div className="p-6">
           <Button 
             variant="outline" 
             className="w-full justify-start gap-2 h-11 rounded-xl border-zinc-900 bg-zinc-900/50 hover:bg-zinc-800 hover:border-zinc-700 text-zinc-300 transition-all duration-200 group"
+            onClick={handleNewConversation}
           >
             <Plus size={16} className="text-zinc-500 group-hover:text-emerald-500 transition-colors" />
             <span className="font-medium">新对话</span>
-            <Badge variant="outline" className="ml-auto text-[10px] border-zinc-800 text-zinc-600 bg-zinc-950">Ctrl K</Badge>
           </Button>
         </div>
 
-        <ScrollArea className="flex-1 px-3">
+        <ScrollArea className="flex-1 px-3 w-full">
           <div className="px-3 text-[11px] font-semibold text-zinc-600 uppercase tracking-widest mb-4 mt-2">
             我的会话
           </div>
-          <div className="space-y-1">
-            {[
-              { title: '北京旅游攻略调研', active: true },
-              { title: 'Tavily MCP 集成测试', active: false },
-              { title: 'React 性能优化实战', active: false },
-              { title: 'NestJS 架构设计方案', active: false }
-            ].map((chat, i) => (
-              <Button 
-                key={i} 
-                variant="ghost" 
-                className={`w-full justify-start gap-3 h-11 px-3 rounded-lg font-normal transition-all duration-200 group ${
-                  chat.active ? 'bg-zinc-900 text-zinc-100' : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-900/50'
-                }`}
-              >
-                <MessageSquare size={14} className={chat.active ? 'text-emerald-500' : 'text-zinc-600 group-hover:text-emerald-500/70'} />
-                <span className="truncate">{chat.title}</span>
-              </Button>
-            ))}
-          </div>
+          {isLoadingConversations ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 size={16} className="animate-spin text-zinc-600" />
+            </div>
+          ) : token ? (
+            <div className="space-y-1">
+              {conversations.map((conv) => (
+                <div 
+                  key={conv.id} 
+                  className={`group flex items-center justify-between w-full h-11 px-3 rounded-lg font-normal transition-all duration-200 overflow-hidden ${currentConversationId === conv.id ? 'bg-zinc-900 text-zinc-100' : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-900/50 cursor-pointer'}`}
+                  onClick={() => handleSelectConversation(conv)}
+                >
+                  <div className="flex items-center gap-3 flex-1 min-w-0 w-72">
+                    <MessageSquare size={14} className={currentConversationId === conv.id ? 'text-emerald-500 shrink-0' : 'text-zinc-600 group-hover:text-emerald-500/70 shrink-0'} />
+                    <div className="flex-1 min-w-0">
+                      <span className="block truncate">{conv.title}</span>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-red-400 hover:bg-red-500/10 transition-all"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteConversation(conv.id);
+                    }}
+                  >
+                    <Trash2 size={14} />
+                  </Button>
+                </div>
+              ))}
+              {conversations.length === 0 && (
+                <div className="text-center py-8 text-zinc-600 text-sm">
+                  暂无会话记录
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-zinc-600 text-sm">
+              登录后可查看历史记录
+            </div>
+          )}
         </ScrollArea>
 
         <div className="p-4 mt-auto">
-          <div className="flex items-center gap-3 p-3 bg-zinc-900/30 rounded-2xl border border-zinc-900 hover:border-zinc-700 transition-colors cursor-pointer group">
-            <Avatar className="h-10 w-10 border border-zinc-800 group-hover:border-emerald-500/30 transition-colors">
-              <AvatarFallback className="bg-zinc-800 text-zinc-400 text-xs font-bold">DA</AvatarFallback>
-            </Avatar>
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-semibold text-zinc-200 truncate group-hover:text-white">Developer Admin</div>
-              <div className="text-[11px] text-zinc-500 font-medium">Free Plan</div>
+          {token && user ? (
+            <div className="flex items-center gap-3 p-3 bg-zinc-900/30 rounded-2xl border border-zinc-900 hover:border-zinc-700 transition-colors group">
+              <Avatar className="h-10 w-10 border border-zinc-800 group-hover:border-emerald-500/30 transition-colors">
+                <AvatarFallback className="bg-zinc-800 text-zinc-400 text-xs font-bold">
+                  {getUserInitial(user.email)}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-semibold text-zinc-200 truncate group-hover:text-white">
+                  {getUserName(user.email)}
+                </div>
+                <div className="text-[11px] text-zinc-500 font-medium truncate">
+                  {user.email}
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-zinc-600 hover:text-zinc-400 hover:bg-zinc-800"
+                onClick={handleSignOut}
+              >
+                <LogOut size={14} />
+              </Button>
             </div>
-            <Settings size={14} className="text-zinc-600 group-hover:text-zinc-400" />
-          </div>
+          ) : (
+            <Button
+              variant="outline"
+              className="w-full justify-start gap-2 h-11 rounded-xl border-zinc-900 bg-zinc-900/50 hover:bg-zinc-800 hover:border-zinc-700 text-zinc-300 transition-all duration-200"
+              onClick={onLoginClick}
+            >
+              <LogIn size={16} className="text-zinc-500" />
+              <span className="font-medium">登录</span>
+            </Button>
+          )}
         </div>
       </aside>
 
-      {/* 2. 右侧主内容区 (Main Content) */}
       <main className="flex-1 flex flex-col relative bg-zinc-950">
-        {/* 精致 Header */}
         <header className="h-16 border-b border-zinc-900 flex items-center justify-between px-8 bg-zinc-950 z-20">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
@@ -215,14 +399,12 @@ export default function App() {
           </div>
         </header>
 
-        {/* 消息滚动区 */}
         <ScrollArea className="flex-1" ref={scrollRef}>
           <div className="max-w-3xl mx-auto px-6 py-12 space-y-10">
             <MessageList messages={messages} isLoading={isLoading} />
           </div>
         </ScrollArea>
 
-        {/* 极简底部输入区 */}
         <div className="px-8 pb-8 pt-4 bg-gradient-to-t from-zinc-950 via-zinc-950/80 to-transparent">
           <form 
             onSubmit={(e) => {
@@ -239,7 +421,7 @@ export default function App() {
                   value={input || ''}
                   placeholder="有什么可以帮您的？"
                   onChange={handleInputChange}
-                  disabled={isLoading}
+                  disabled={isLoading || isLoadingMessages}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
@@ -253,7 +435,7 @@ export default function App() {
                 />
                <Button 
                   type="submit" 
-                  disabled={isLoading || !(input || '').trim()}
+                  disabled={isLoading || !(input || '').trim() || isLoadingMessages}
                   size="icon"
                   className={`h-10 w-10 rounded-xl transition-all duration-300 ${
                     (input || '').trim() 
@@ -285,4 +467,47 @@ export default function App() {
       </main>
     </div>
   );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
+  );
+}
+
+function AppContent() {
+  const { user, token, loading } = useAuth();
+  const [showLogin, setShowLogin] = useState(false);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+        <div className="flex items-center gap-3 text-zinc-500">
+          <Loader2 size={20} className="animate-spin text-emerald-500" />
+          <span className="text-sm font-medium">加载中...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (showLogin && !user) {
+    return (
+      <div>
+        <LoginPage />
+        <div className="fixed bottom-4 right-4">
+          <Button
+            variant="ghost"
+            onClick={() => setShowLogin(false)}
+            className="text-zinc-500 hover:text-zinc-300"
+          >
+            取消，返回聊天
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return <ChatApp user={user} token={token} onLoginClick={() => setShowLogin(true)} />;
 }
