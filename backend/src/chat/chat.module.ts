@@ -5,9 +5,10 @@ import { ToolRegistryService } from "./tool-registry.service";
 import { McpClientService } from "./mcp-client.service";
 import { HistoryModule } from "../history/history.module";
 import { SupabaseModule } from "../supabase/supabase.module";
+import { AgentModule } from "../agent/agent.module";
 
 @Module({
-  imports: [HistoryModule, SupabaseModule],
+  imports: [HistoryModule, SupabaseModule, AgentModule],
   controllers: [ChatController],
   providers: [ChatService, ToolRegistryService, McpClientService],
 })

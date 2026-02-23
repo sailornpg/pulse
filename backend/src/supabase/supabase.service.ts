@@ -16,21 +16,30 @@ export class SupabaseService {
     return this.client;
   }
 
-  getClientWithToken(token: string): SupabaseClient {
+  async getClientWithToken(token: string): Promise<SupabaseClient> {
+    // 先验证 token 并获取用户信息
+    const { data: { user }, error: userError } = await this.client.auth.getUser(token);
+    if (userError || !user) {
+      throw new Error('Invalid token');
+    }
+    
     const client = createClient(
       process.env.SUPABASE_URL!,
       process.env.SUPABASE_ANON_KEY!,
       {
-        global: {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
         auth: {
           persistSession: false,
+          autoRefreshToken: false,
         },
       }
     );
+    
+    // 设置 session 以便 RLS 策略的 auth.uid() 能工作
+    await client.auth.setSession({
+      access_token: token,
+      refresh_token: token, // 使用 access_token 作为 refresh_token（因为我们不刷新）
+    });
+    
     return client;
   }
 

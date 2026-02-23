@@ -1,21 +1,27 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { weatherTool } from '../tools/weather.tool';
 import { timeTool } from '../tools/time.tool';
 import { calculatorTool } from '../tools/calculator.tool';
+import { createUpdateFileTool } from '../tools/update-file.tool';
+import { AgentService } from '../agent/agent.service';
 
 @Injectable()
 export class ToolRegistryService {
-  // 所有的工具都注册在这里
-  private readonly tools = {
-    getWeather: weatherTool,
-    getCurrentTime: timeTool,
-    calculate: calculatorTool,
-  };
+  constructor(@Optional() private agentService?: AgentService) {}
 
-  /**
-   * 获取模型需要的所有工具定义
-   */
-  getAllTools() {
-    return this.tools;
+  getAllTools(userId?: string, token?: string) {
+    const updateAgentFile = this.agentService ? createUpdateFileTool(this.agentService, userId, token) : null;
+    
+    const tools: Record<string, any> = {
+      getWeather: weatherTool,
+      getCurrentTime: timeTool,
+      calculate: calculatorTool,
+    };
+    
+    if (updateAgentFile) {
+      tools.updateAgentFile = updateAgentFile;
+    }
+    
+    return tools;
   }
 }

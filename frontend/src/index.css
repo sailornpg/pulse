@@ -83,3 +83,7 @@
 .prose a {
   @apply text-emerald-400 hover:text-emerald-300 transition-colors underline underline-offset-4 decoration-emerald-400/30;
 }
+
+.prose hr {
+  @apply my-4;
+}

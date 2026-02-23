@@ -102,23 +102,23 @@ export function ToolRenderer({ toolName, toolCallId, state, args, result }: Tool
   // 1. 加载状态展示
   if (state === 'call') {
     return (
-      <div className="mt-4 p-5 bg-zinc-950/80 backdrop-blur-md rounded-2xl border border-blue-500/20 shadow-[0_0_20px_rgba(59,130,246,0.1)] flex flex-col gap-4">
+      <div className="mt-4 p-5 bg-zinc-950/80 backdrop-blur-md rounded-2xl border border-emerald-500/20 shadow-[0_0_20px_rgba(59,130,246,0.1)] flex flex-col gap-4">
         <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
                 <div className="relative">
-                    <Loader2 className="animate-spin text-blue-500" size={20} />
-                    <Zap size={10} className="absolute inset-0 m-auto text-blue-400 animate-pulse" />
+                    <Loader2 className="animate-spin text-emerald-500" size={20} />
+                    <Zap size={10} className="absolute inset-0 m-auto text-emerald-400 animate-pulse" />
                 </div>
                 <div className="flex flex-col">
                     <span className="text-sm font-semibold text-zinc-200">
-                        AI 智能体正在操作: <span className="text-blue-400">{toolName}</span>
+                         PULSE 正在操作: <span className="text-emerald-400">{toolName}</span>
                     </span>
                     <span className="text-[11px] text-zinc-500 font-mono animate-pulse">
                         {THINKING_PHASES[phaseIdx]}
                     </span>
                 </div>
             </div>
-            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-blue-500/10 rounded-lg border border-blue-500/20 text-[10px] text-blue-400/80 font-mono">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/10 rounded-lg border border-emerald-500/20 text-[10px] text-emerald-400/80 font-mono">
                 <Clock size={10} className="animate-spin" style={{ animationDuration: '3s' }} />
                 <span>实时计时: {displayDuration.toFixed(1)}s</span>
             </div>
@@ -127,14 +127,14 @@ export function ToolRenderer({ toolName, toolCallId, state, args, result }: Tool
         {/* 模拟进度条 */}
         <div className="w-full h-1 bg-zinc-900 rounded-full overflow-hidden">
             <div 
-                className="h-full bg-blue-500/50 transition-all duration-500 ease-out"
+                className="h-full bg-emerald-500/50 transition-all duration-500 ease-out"
                 style={{ width: `${Math.min((phaseIdx + 1) * 20 + (elapsed % 2) * 5, 98)}%` }}
             ></div>
         </div>
       </div>
     );
   }
-
+  <div>{JSON.stringify(state)}12312</div>
   // 2. 结果状态展示（带展开/收起）
   if (state === 'result') {
     const Component = TOOL_COMPONENTS[toolName];

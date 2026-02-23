@@ -3,7 +3,7 @@ import { CloudSun, Wind } from 'lucide-react';
 export function WeatherResult({ result }: { result: any }) {
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2 text-blue-400 font-bold">
+      <div className="flex items-center gap-2 text-emerald-400 font-bold">
         <CloudSun size={18} />
         <span>天气实况</span>
       </div>

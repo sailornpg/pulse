@@ -1,21 +1,22 @@
 import { useChat } from 'ai/react';
 import type { Message } from 'ai';
 
-import { Terminal, Loader2, Plus, MessageSquare, User, Settings, Layout, Send, Sparkles, Command, LogOut, Trash2, LogIn } from 'lucide-react';
+import { Loader2, Plus, MessageSquare, User, Layout, Send, Sparkles, Command, LogOut, Trash2, LogIn, PanelLeftClose, PanelLeft, MoreHorizontal, Brain } from 'lucide-react';
 import { ToolRenderer } from './components/ToolRenderer';
 import ReactMarkdown from 'react-markdown';
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Input } from "@/components/ui/input"
-import { Card } from "@/components/ui/card"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { motion, AnimatePresence } from 'framer-motion';
 import { useEffect, useRef, memo, useState } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { API_URL } from './lib/supabase';
 import LoginPage from './pages/LoginPage';
+import { AgentSettings } from './components/AgentSettings';
 
 interface Conversation {
   id: string;
@@ -29,12 +30,15 @@ interface User {
   email: string;
 }
 
-const MessageList = memo(function MessageList({ messages, isLoading }: { messages: Message[], isLoading: boolean }) {
+// Placeholder for MessageList - no changes needed since the block was already identical
+const MessageList = memo(function MessageList({ messages, isLoading, isLoadingMessages }: { messages: Message[], isLoading: boolean, isLoadingMessages?: boolean }) {
+  const showLoading = isLoading || isLoadingMessages;
+  
   return (
     <>
       <AnimatePresence initial={false}>
-        {messages.length === 0 && (
-          <motion.div 
+        {messages.length === 0 && !showLoading && (
+          <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             className="flex flex-col items-center justify-center py-20 text-center"
@@ -50,7 +54,7 @@ const MessageList = memo(function MessageList({ messages, isLoading }: { message
         )}
 
         {messages.map((m: Message) => (
-          <motion.div 
+          <motion.div
             key={m.id}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -59,7 +63,7 @@ const MessageList = memo(function MessageList({ messages, isLoading }: { message
           >
             <div className={`flex gap-5 ${m.role === 'user' ? 'flex-row-reverse max-w-[85%]' : 'w-full'}`}>
               <div className="flex-1 space-y-4 min-w-0">
-                {m.role === 'assistant' && (m as any).parts ? (
+                {m.role !== 'user' && (m as any).parts ? (
                   (m as any).parts.map((part: any, i: number) => {
                     if (part.type === 'text') {
                       return (
@@ -71,11 +75,11 @@ const MessageList = memo(function MessageList({ messages, isLoading }: { message
                     if (part.type === 'tool-invocation') {
                       const ti = part.toolInvocation;
                       return (
-                        <div 
+                        <div
                           key={part.toolCallId}
                           className="animate-in fade-in duration-300"
                         >
-                          <ToolRenderer 
+                          <ToolRenderer
                             toolName={ti.toolName}
                             toolCallId={ti.toolCallId}
                             state={ti.state === 'result' ? 'result' : 'call'}
@@ -89,18 +93,17 @@ const MessageList = memo(function MessageList({ messages, isLoading }: { message
                   })
                 ) : (
                   <>
-                    <div className={`prose prose-zinc dark:prose-invert max-w-none ${
-                      m.role === 'user' 
-                        ? 'bg-zinc-900 border border-zinc-800 px-5 py-3 rounded-2xl rounded-tr-sm text-zinc-100 shadow-sm' 
-                        : 'text-zinc-200 leading-relaxed'
-                    }`}>
+                    <div className={`prose prose-zinc dark:prose-invert max-w-none ${m.role === 'user'
+                      ? 'bg-zinc-900 border border-zinc-800 px-5 py-3 rounded-2xl rounded-tr-sm text-zinc-100 shadow-sm'
+                      : 'text-zinc-200 leading-relaxed'
+                      }`}>
                       <ReactMarkdown>{m.content}</ReactMarkdown>
                     </div>
-                    {m.toolInvocations && (
+                    {/* {m.parts && (
                       <div className="space-y-3">
-                        {m.toolInvocations.map((toolInvocation: any) => (
+                        {m.parts.map((toolInvocation: any) => (
                           <div key={toolInvocation.toolCallId} className="animate-in fade-in duration-300">
-                            <ToolRenderer 
+                            <ToolRenderer
                               toolName={toolInvocation.toolName}
                               toolCallId={toolInvocation.toolCallId}
                               state={toolInvocation.state === 'result' ? 'result' : 'call'}
@@ -110,7 +113,7 @@ const MessageList = memo(function MessageList({ messages, isLoading }: { message
                           </div>
                         ))}
                       </div>
-                    )}
+                    )} */}
                   </>
                 )}
               </div>
@@ -119,8 +122,8 @@ const MessageList = memo(function MessageList({ messages, isLoading }: { message
         ))}
       </AnimatePresence>
 
-      {isLoading && (messages.length === 0 || messages[messages.length - 1]?.role !== 'assistant') && (
-        <motion.div 
+      {showLoading && (messages.length === 0 || messages[messages.length - 1]?.role !== 'assistant') && (
+        <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           className="flex justify-start"
@@ -137,29 +140,28 @@ const MessageList = memo(function MessageList({ messages, isLoading }: { message
 
 function ChatApp({ user, token, onLoginClick }: { user: User | null, token: string | null, onLoginClick: () => void }) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [currentConversationId, setCurrentConversationId] = useState<string | null>(() => {
-    return localStorage.getItem('currentConversationId');
-  });
+  const [currentConversationId, setCurrentConversationId] = useState<string | null>(null);
   const [isLoadingConversations, setIsLoadingConversations] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
-  useEffect(() => {
-    if (currentConversationId) {
-      localStorage.setItem('currentConversationId', currentConversationId);
-    } else {
-      localStorage.removeItem('currentConversationId');
-    }
-  }, [currentConversationId]);
-
-  const { messages, input, handleInputChange, handleSubmit, setMessages, isLoading } = useChat({
+  const { messages, input, handleInputChange, handleSubmit, setMessages, isLoading, error } = useChat({
     api: `${API_URL}/chat`,
     body: { conversationId: currentConversationId },
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     initialInput: '',
-    onFinish: (message) => {
-      if (message.role === 'assistant') {
-        loadConversations();
+    onFinish: async (message) => {
+      if (message.role === 'assistant' && !currentConversationId) {
+        const convs = await loadConversations();
+        // 找到最新的会话ID并设置
+        if (convs.length > 0) {
+          setCurrentConversationId(convs[0].id);
+        }
       }
+    },
+    onError: (error) => {
+      console.error('[useChat] error:', error);
     },
   });
 
@@ -172,10 +174,11 @@ function ChatApp({ user, token, onLoginClick }: { user: User | null, token: stri
         scrollContainer.scrollTop = scrollContainer.scrollHeight;
       }
     }
+    console.log(messages, 'v')
   }, [messages]);
 
   const loadConversations = async () => {
-    if (!token) return;
+    if (!token) return [];
     setIsLoadingConversations(true);
     try {
       const res = await fetch(`${API_URL}/history/conversations`, {
@@ -184,12 +187,12 @@ function ChatApp({ user, token, onLoginClick }: { user: User | null, token: stri
       if (res.ok) {
         const data = await res.json();
         setConversations(data);
-        if (data.length > 0 && !currentConversationId) {
-          setCurrentConversationId(data[0].id);
-        }
+        return data;
       }
+      return [];
     } catch (err) {
       console.error("加载会话失败:", err);
+      return [];
     } finally {
       setIsLoadingConversations(false);
     }
@@ -229,10 +232,13 @@ function ChatApp({ user, token, onLoginClick }: { user: User | null, token: stri
   const handleNewConversation = () => {
     setMessages([]);
     setCurrentConversationId(null);
-    localStorage.removeItem('currentConversationId');
   };
 
   const handleSelectConversation = (conv: Conversation) => {
+    if (conv.id === currentConversationId) {
+      return;
+    }
+    setCurrentConversationId(conv.id);
     loadMessages(conv.id);
   };
 
@@ -244,9 +250,6 @@ function ChatApp({ user, token, onLoginClick }: { user: User | null, token: stri
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
-        if (currentConversationId === convId) {
-          handleNewConversation();
-        }
         loadConversations();
       }
     } catch (err) {
@@ -270,65 +273,92 @@ function ChatApp({ user, token, onLoginClick }: { user: User | null, token: stri
 
   return (
     <div className="flex h-screen bg-zinc-950 text-foreground overflow-hidden font-sans selection:bg-emerald-500/10 selection:text-emerald-400">
-      <aside className="bg-zinc-950 border-r border-zinc-900 flex flex-col hidden md:flex shrink-0">
-        <div className="p-6">
-          <Button 
-            variant="outline" 
+      <aside className={`bg-zinc-950 border-r border-zinc-900 flex flex-col hidden md:flex shrink-0 transition-all duration-300 ${sidebarCollapsed ? 'w-0 overflow-hidden' : 'w-72'}`}>
+        {
+          !sidebarCollapsed && (
+            <div className="flex items-center gap-2 px-3 pt-5">
+              <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
+                <Sparkles size={16} className="text-emerald-500" />
+              </div>
+              <h1 className="text-sm font-bold tracking-tight text-zinc-100 font-mono">PULSE AI</h1>
+              <Badge variant="outline" className="text-[10px] font-mono border-zinc-900 text-zinc-500 px-2 py-0">
+                v2.5.0
+              </Badge>
+            </div>
+          )
+        }
+        <div className="px-3 my-4">
+          <Button
+            variant="outline"
             className="w-full justify-start gap-2 h-11 rounded-xl border-zinc-900 bg-zinc-900/50 hover:bg-zinc-800 hover:border-zinc-700 text-zinc-300 transition-all duration-200 group"
             onClick={handleNewConversation}
           >
             <Plus size={16} className="text-zinc-500 group-hover:text-emerald-500 transition-colors" />
-            <span className="font-medium">新对话</span>
+            {!sidebarCollapsed && <span className="font-medium">新对话</span>}
           </Button>
         </div>
 
-        <ScrollArea className="flex-1 px-3 w-full">
-          <div className="px-3 text-[11px] font-semibold text-zinc-600 uppercase tracking-widest mb-4 mt-2">
-            我的会话
-          </div>
-          {isLoadingConversations ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 size={16} className="animate-spin text-zinc-600" />
+        {!sidebarCollapsed && (
+          <ScrollArea className="flex-1 px-3 w-full">
+            <div className="px-3 text-[11px] font-semibold text-zinc-600 uppercase tracking-widest mb-4 mt-2">
+              我的会话
             </div>
-          ) : token ? (
-            <div className="space-y-1">
-              {conversations.map((conv) => (
-                <div 
-                  key={conv.id} 
-                  className={`group flex items-center justify-between w-full h-11 px-3 rounded-lg font-normal transition-all duration-200 overflow-hidden ${currentConversationId === conv.id ? 'bg-zinc-900 text-zinc-100' : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-900/50 cursor-pointer'}`}
-                  onClick={() => handleSelectConversation(conv)}
-                >
-                  <div className="flex items-center gap-3 flex-1 min-w-0 w-72">
-                    <MessageSquare size={14} className={currentConversationId === conv.id ? 'text-emerald-500 shrink-0' : 'text-zinc-600 group-hover:text-emerald-500/70 shrink-0'} />
-                    <div className="flex-1 min-w-0">
-                      <span className="block truncate">{conv.title}</span>
-                    </div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 opacity-0 group-hover:opacity-100 text-zinc-600 hover:text-red-400 hover:bg-red-500/10 transition-all"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDeleteConversation(conv.id);
-                    }}
+            {isLoadingConversations ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 size={16} className="animate-spin text-zinc-600" />
+              </div>
+            ) : token ? (
+              <div className="space-y-1 w-full">
+                {conversations.map((conv) => (
+                  <div
+                    key={conv.id}
+                    className={`group flex items-center justify-between w-64 h-11 px-3 rounded-lg font-normal transition-all duration-200 overflow-hidden ${currentConversationId === conv.id ? 'bg-zinc-900 text-zinc-100' : 'text-zinc-500 hover:text-zinc-200 hover:bg-zinc-900/50 cursor-pointer'}`}
+                    onClick={() => handleSelectConversation(conv)}
                   >
-                    <Trash2 size={14} />
-                  </Button>
-                </div>
-              ))}
-              {conversations.length === 0 && (
-                <div className="text-center py-8 text-zinc-600 text-sm">
-                  暂无会话记录
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="text-center py-8 text-zinc-600 text-sm">
-              登录后可查看历史记录
-            </div>
-          )}
-        </ScrollArea>
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <MessageSquare size={14} className={currentConversationId === conv.id ? 'text-emerald-500 shrink-0' : 'text-zinc-600 group-hover:text-emerald-500/70 shrink-0'} />
+                      <div className="flex-1 min-w-0">
+                        <span className="block truncate">{conv.title}</span>
+                      </div>
+                    </div>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-zinc-600 transition-all"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <MoreHorizontal size={14} />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start">
+                        <DropdownMenuItem
+                          className="text-red-400 focus:text-red-400 cursor-pointer"
+                          onClick={() => {
+                            handleDeleteConversation(conv.id);
+                          }}
+                        >
+                          <Trash2 size={14} className="mr-2" />
+                          删除会话
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                ))}
+                {conversations.length === 0 && (
+                  <div className="text-center py-8 text-zinc-600 text-sm">
+                    暂无会话记录
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-zinc-600 text-sm">
+                登录后可查看历史记录
+              </div>
+            )}
+          </ScrollArea>
+        )}
 
         <div className="p-4 mt-auto">
           {token && user ? (
@@ -338,24 +368,28 @@ function ChatApp({ user, token, onLoginClick }: { user: User | null, token: stri
                   {getUserInitial(user.email)}
                 </AvatarFallback>
               </Avatar>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-semibold text-zinc-200 truncate group-hover:text-white">
-                  {getUserName(user.email)}
-                </div>
-                <div className="text-[11px] text-zinc-500 font-medium truncate">
-                  {user.email}
-                </div>
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-zinc-600 hover:text-zinc-400 hover:bg-zinc-800"
-                onClick={handleSignOut}
-              >
-                <LogOut size={14} />
-              </Button>
+              {!sidebarCollapsed && (
+                <>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-semibold text-zinc-200 truncate group-hover:text-white">
+                      {getUserName(user.email)}
+                    </div>
+                    <div className="text-[11px] text-zinc-500 font-medium truncate">
+                      {user.email}
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-zinc-600 hover:text-zinc-400 hover:bg-zinc-800"
+                    onClick={handleSignOut}
+                  >
+                    <LogOut size={14} />
+                  </Button>
+                </>
+              )}
             </div>
-          ) : (
+          ) : !sidebarCollapsed ? (
             <Button
               variant="outline"
               className="w-full justify-start gap-2 h-11 rounded-xl border-zinc-900 bg-zinc-900/50 hover:bg-zinc-800 hover:border-zinc-700 text-zinc-300 transition-all duration-200"
@@ -364,24 +398,29 @@ function ChatApp({ user, token, onLoginClick }: { user: User | null, token: stri
               <LogIn size={16} className="text-zinc-500" />
               <span className="font-medium">登录</span>
             </Button>
-          )}
+          ) : null}
         </div>
       </aside>
 
+
+
       <main className="flex-1 flex flex-col relative bg-zinc-950">
-        <header className="h-16 border-b border-zinc-900 flex items-center justify-between px-8 bg-zinc-950 z-20">
+        <header className="h-16 border-b border-zinc-900 flex items-center justify-between px-4 bg-zinc-950 z-20">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
-               <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
-                 <Sparkles size={16} className="text-emerald-500" />
-               </div>
-               <h1 className="text-sm font-bold tracking-tight text-zinc-100">Pulse AI</h1>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800 transition-all"
+                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+              >
+                {sidebarCollapsed ? <PanelLeft size={16} /> : <PanelLeftClose size={16} />}
+              </Button>
+
             </div>
-            <Badge variant="outline" className="text-[10px] font-mono border-zinc-900 text-zinc-500 px-2 py-0">
-              v2.5.0
-            </Badge>
+
           </div>
-          
+
           <div className="flex items-center gap-4">
             <div className="flex -space-x-1.5">
               {[1, 2].map((i) => (
@@ -393,24 +432,48 @@ function ChatApp({ user, token, onLoginClick }: { user: User | null, token: stri
               ))}
             </div>
             <Separator orientation="vertical" className="h-4 bg-zinc-800" />
+            {user && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8 text-zinc-500 hover:text-zinc-200 hover:bg-zinc-900"
+                onClick={() => setShowSettings(true)}
+                title="AI 记忆设置"
+              >
+                <Brain size={18} />
+              </Button>
+            )}
             <Button variant="ghost" size="icon" className="h-8 w-8 text-zinc-500 hover:text-zinc-200 hover:bg-zinc-900">
               <Layout size={18} />
             </Button>
           </div>
         </header>
 
-        <ScrollArea className="flex-1" ref={scrollRef}>
+        <ScrollArea className="flex-1 relative" ref={scrollRef}>
+          {isLoadingMessages && (
+            <div className="absolute inset-0 flex items-center justify-center bg-zinc-950/50 backdrop-blur-sm z-10">
+              <div className="flex items-center gap-3 text-zinc-400px-4 py-3 rounded-xl">
+                <Loader2 className="animate-spin text-emerald-500" size={18} />
+                <span className="text-sm font-medium">加载中...</span>
+              </div>
+            </div>
+          )}
           <div className="max-w-3xl mx-auto px-6 py-12 space-y-10">
-            <MessageList messages={messages} isLoading={isLoading} />
+            <MessageList messages={messages} isLoading={isLoading} isLoadingMessages={isLoadingMessages} />
+            {error && (
+              <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-sm">
+                错误: {error.message || String(error)}
+              </div>
+            )}
           </div>
         </ScrollArea>
 
         <div className="px-8 pb-8 pt-4 bg-gradient-to-t from-zinc-950 via-zinc-950/80 to-transparent">
-          <form 
+          <form
             onSubmit={(e) => {
               e.preventDefault();
               handleSubmit(e);
-            }} 
+            }}
             className="max-w-3xl mx-auto"
           >
             <div className="relative group">
@@ -433,21 +496,20 @@ function ChatApp({ user, token, onLoginClick }: { user: User | null, token: stri
                     }
                   }}
                 />
-               <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   disabled={isLoading || !(input || '').trim() || isLoadingMessages}
                   size="icon"
-                  className={`h-10 w-10 rounded-xl transition-all duration-300 ${
-                    (input || '').trim() 
-                      ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-[0_0_20px_rgba(16,185,129,0.2)]' 
-                      : 'bg-zinc-800 text-zinc-500'
-                  }`}
+                  className={`h-10 w-10 rounded-xl transition-all duration-300 ${(input || '').trim()
+                    ? 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-[0_0_20px_rgba(16,185,129,0.2)]'
+                    : 'bg-zinc-800 text-zinc-500'
+                    }`}
                 >
                   {isLoading ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
                 </Button>
               </div>
             </div>
-            
+
             <div className="mt-3 flex items-center justify-between px-2">
               <div className="flex items-center gap-4 text-[10px] text-zinc-600 font-semibold uppercase tracking-wider">
                 <div className="flex items-center gap-1.5">
@@ -472,14 +534,15 @@ function ChatApp({ user, token, onLoginClick }: { user: User | null, token: stri
 export default function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <ChatAppWithSettings />
     </AuthProvider>
   );
 }
 
-function AppContent() {
+function ChatAppWithSettings() {
   const { user, token, loading } = useAuth();
   const [showLogin, setShowLogin] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   if (loading) {
     return (
@@ -509,5 +572,17 @@ function AppContent() {
     );
   }
 
-  return <ChatApp user={user} token={token} onLoginClick={() => setShowLogin(true)} />;
+  return (
+    <>
+      <ChatApp user={user} token={token} onLoginClick={() => setShowLogin(true)} />
+      {showSettings && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <AgentSettings 
+            userId={user?.id || null} 
+            onClose={() => setShowSettings(false)} 
+          />
+        </div>
+      )}
+    </>
+  );
 }

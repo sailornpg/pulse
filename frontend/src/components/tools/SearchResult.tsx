@@ -48,6 +48,14 @@ export function SearchResult({ result, args }: SearchResultProps) {
              {JSON.stringify(args, null, 2)}
            </pre>
         </div>
+        <div className="text-zinc-500 text-[11px] italic">
+          以下是本次搜索的结果：
+        </div>
+        <div className="bg-black/30 rounded-lg p-3 border border-zinc-800/50">
+           <pre className="text-[10px] text-zinc-400 font-mono whitespace-pre-wrap">
+             {JSON.stringify(result, null, 2)}
+           </pre>
+        </div>
       </div>
     );
   }

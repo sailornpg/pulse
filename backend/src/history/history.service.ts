@@ -22,12 +22,13 @@ export interface Message {
 export class HistoryService {
   constructor(private supabase: SupabaseService) {}
 
-  private getClient(token?: string) {
-    return token ? this.supabase.getClientWithToken(token) : this.supabase.getClient();
+  private async getClient(token?: string) {
+    return token ? await this.supabase.getClientWithToken(token) : this.supabase.getClient();
   }
 
   async getConversations(userId: string, token?: string): Promise<Conversation[]> {
-    const { data, error } = await this.getClient(token)
+    const client = await this.getClient(token);
+    const { data, error } = await client
       .from("conversations")
       .select("*")
       .eq("user_id", userId)
@@ -38,20 +39,41 @@ export class HistoryService {
   }
 
   async createConversation(userId: string, title: string = "新对话", token?: string): Promise<Conversation> {
-    const { data, error } = await this.getClient(token)
+    const client = await this.getClient(token);
+    
+    console.log('[History] createConversation - userId:', userId, 'hasToken:', !!token);
+    
+    const { data, error } = await client
       .from("conversations")
       .insert({ user_id: userId, title })
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('[History] createConversation error:', error);
+      throw error;
+    }
     return data;
   }
 
   async getMessages(conversationId: string, userId: string, token?: string): Promise<Message[]> {
-    await this.verifyConversationOwner(conversationId, userId, token);
+    const client = await this.getClient(token);
     
-    const { data, error } = await this.getClient(token)
+    const { data: conversation, error: convError } = await client
+      .from("conversations")
+      .select("user_id")
+      .eq("id", conversationId)
+      .single();
+
+    if (convError || !conversation) {
+      throw new NotFoundException("Conversation not found");
+    }
+    
+    if (conversation.user_id !== userId) {
+      throw new ForbiddenException("Not authorized to access this conversation");
+    }
+    
+    const { data, error } = await client
       .from("messages")
       .select("*")
       .eq("conversation_id", conversationId)
@@ -62,7 +84,7 @@ export class HistoryService {
   }
 
   async addMessage(conversationId: string, userId: string, role: string, content: string, parts?: any, token?: string): Promise<Message> {
-    const client = this.getClient(token);
+    const client = await this.getClient(token);
     
     const { data, error } = await client
       .from("messages")
@@ -86,7 +108,8 @@ export class HistoryService {
   async updateConversationTitle(conversationId: string, userId: string, title: string, token?: string): Promise<Conversation> {
     await this.verifyConversationOwner(conversationId, userId, token);
 
-    const { data, error } = await this.getClient(token)
+    const client = await this.getClient(token);
+    const { data, error } = await client
       .from("conversations")
       .update({ title })
       .eq("id", conversationId)
@@ -100,7 +123,8 @@ export class HistoryService {
   async deleteConversation(conversationId: string, userId: string, token?: string): Promise<void> {
     await this.verifyConversationOwner(conversationId, userId, token);
 
-    const { error } = await this.getClient(token)
+    const client = await this.getClient(token);
+    const { error } = await client
       .from("conversations")
       .delete()
       .eq("id", conversationId);
@@ -109,7 +133,8 @@ export class HistoryService {
   }
 
   private async verifyConversationOwner(conversationId: string, userId: string, token?: string): Promise<void> {
-    const { data, error } = await this.getClient(token)
+    const client = await this.getClient(token);
+    const { data, error } = await client
       .from("conversations")
       .select("user_id")
       .eq("id", conversationId)
