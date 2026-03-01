@@ -3,11 +3,14 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { jsonSchema } from "ai";
 import { MCP_SERVERS, McpServerConfig } from "./mcp.config";
+import { createConnection } from "@smithery/api/mcp"; // 导入 smithery 辅助工具
+// 修改为通用的 Transport 类型
+import { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 
 @Injectable()
 export class McpClientService implements OnModuleInit, OnModuleDestroy {
   private clients: Map<string, Client> = new Map();
-  private transports: Map<string, StdioClientTransport> = new Map();
+  private transports: Map<string, Transport> = new Map();
   private externalTools: any = {};
   private initializedServers: string[] = [];
 
@@ -34,14 +37,26 @@ export class McpClientService implements OnModuleInit, OnModuleDestroy {
     console.log(`[MCP] 正在连接服务器: ${config.name}...`);
 
     try {
-      const transport = new StdioClientTransport({
-        command: config.command,
-        args: config.args,
-        env: config.env || (process.env as Record<string, string>),
-      });
+      let transport;
+
+      if (config.type === 'remote') {
+        // --- 接入远程 YouTube API 逻辑 ---
+        console.log(`[MCP] 使用远程连接: ${config.url}`);
+        const connection = await createConnection({
+          mcpUrl: config.url,
+        });
+        transport = connection.transport;
+      } else {
+        // --- 原有的本地 npx 逻辑 ---
+        transport = new StdioClientTransport({
+          command: config.command!,
+          args: config.args!,
+          env: config.env || (process.env as Record<string, string>),
+        });
+      }
 
       const client = new Client(
-        { name: "demo-client", version: "1.0.0" },
+        { name: "pulse-client-mcp", version: "1.0.0" },
         { capabilities: {} },
       );
 
@@ -49,15 +64,17 @@ export class McpClientService implements OnModuleInit, OnModuleDestroy {
 
       // 注册工具
       const response = await client.listTools();
+      // 注册工具逻辑 (这部分是通用的，不需要改动)
       response.tools.forEach((mcpTool) => {
-        this.externalTools[mcpTool.name] = {
+        // 注意：如果多个 MCP server 有同名工具，这里会被覆盖
+        // 建议给工具名加前缀，例如 `${config.name}__${mcpTool.name}`
+        const toolKey = `${mcpTool.name}`; 
+        
+        this.externalTools[toolKey] = {
           description: mcpTool.description,
           parameters: jsonSchema(mcpTool.inputSchema as any),
           execute: async (args: any) => {
-            console.log(
-              `[MCP] [${config.name}] 正在调用工具: ${mcpTool.name}`,
-              args,
-            );
+            console.log(`[MCP] [${config.name}] 调用工具: ${mcpTool.name}`, args);
             const result = await client.callTool({
               name: mcpTool.name,
               arguments: args,

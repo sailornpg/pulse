@@ -17,6 +17,7 @@
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^10.0.0",
     "@nestjs/schedule": "^6.1.1",
+    "@smithery/api": "^0.50.0",
     "@supabase/supabase-js": "^2.97.0",
     "ai": "^4.1.21",
     "body-parser": "^2.2.2",
