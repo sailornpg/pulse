@@ -1,9 +1,18 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 import { Sparkles, Loader2 } from "lucide-react";
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { LoginBackground3D } from "../components/chat/LoginBackground3D";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -13,9 +22,14 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const { user, login, register } = useAuth();
 
-  if (user) {
-    return null;
-  }
+  const navigate = useNavigate();
+
+  // 监听登录状态，如果已登录则跳回主页
+  useEffect(() => {
+    if (user) {
+      navigate("/", { viewTransition: true });
+    }
+  }, [user, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,99 +51,136 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-emerald-500/5 via-zinc-950 to-zinc-950" />
-      
-      <Card className="w-full max-w-md bg-zinc-900/50 border-zinc-800 backdrop-blur-sm relative z-10">
-        <CardHeader className="text-center space-y-4">
-          <div className="mx-auto w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20">
-            <Sparkles size={24} className="text-emerald-500" />
-          </div>
-          <div>
-            <CardTitle className="text-2xl font-bold text-zinc-100">Pulse AI</CardTitle>
-            <CardDescription className="text-zinc-500 mt-1">
-              {isRegister ? "创建新账户" : "登录到您的账户"}
-            </CardDescription>
-          </div>
-        </CardHeader>
-        
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {error && (
-              <div className={`p-3 rounded-lg text-sm ${
-                error.includes("成功") 
-                  ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                  : "bg-red-500/10 text-red-400 border border-red-500/20"
-              }`}>
-                {error}
-              </div>
-            )}
-            
-            <div className="space-y-2">
-              <Input
-                type="email"
-                placeholder="邮箱地址"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="h-11 bg-zinc-950 border-zinc-800 text-zinc-100 placeholder:text-zinc-500 focus:ring-emerald-500/20 focus:border-emerald-500/50"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Input
-                type="password"
-                placeholder="密码"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={6}
-                className="h-11 bg-zinc-950 border-zinc-800 text-zinc-100 placeholder:text-zinc-500 focus:ring-emerald-500/20 focus:border-emerald-500/50"
-              />
-            </div>
+    <div className="min-h-screen bg-background flex items-center justify-center p-4 relative overflow-hidden">
+      {/* 3D 背景层: 从透明度 0 缓慢淡入，更长的时间给予震撼感 */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 1.5, ease: "easeOut" }}
+      >
+        <LoginBackground3D />
+      </motion.div>
 
-            <Button
-              type="submit"
-              disabled={isLoading}
-              className="w-full h-11 bg-emerald-600 hover:bg-emerald-500 text-white font-medium rounded-lg"
+      {/* 登录卡片层，zIndex 保证在最上层，带有缩放和上浮淡入的动画 */}
+      <motion.div
+        initial={{ opacity: 0, y: 30, scale: 0.95 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{
+          duration: 0.6,
+          delay: 0.3,
+          type: "spring",
+          stiffness: 100,
+          damping: 20,
+        }}
+        className="w-full max-w-md relative z-10"
+      >
+        <Card className="w-full bg-card/50 border-border backdrop-blur-md shadow-2xl">
+          <CardHeader className="text-center space-y-4">
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1, rotate: [0, 10, -10, 0] }}
+              transition={{ delay: 0.8, type: "spring", damping: 10 }}
+              className="mx-auto w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20"
+              style={{ viewTransitionName: "app-logo" }}
             >
-              {isLoading ? (
-                <Loader2 size={18} className="animate-spin" />
-              ) : isRegister ? (
-                "注册"
-              ) : (
-                "登录"
-              )}
-            </Button>
-
-            <div className="text-center text-sm text-zinc-500">
-              {isRegister ? (
-                <>
-                  已有账户？{" "}
-                  <button
-                    type="button"
-                    onClick={() => { setIsRegister(false); setError(""); }}
-                    className="text-emerald-400 hover:text-emerald-300 font-medium"
-                  >
-                    登录
-                  </button>
-                </>
-              ) : (
-                <>
-                  没有账户？{" "}
-                  <button
-                    type="button"
-                    onClick={() => { setIsRegister(true); setError(""); }}
-                    className="text-emerald-400 hover:text-emerald-300 font-medium"
-                  >
-                    注册
-                  </button>
-                </>
-              )}
+              <Sparkles size={24} className="text-emerald-500" />
+            </motion.div>
+            <div>
+              <CardTitle className="text-2xl font-bold text-foreground">
+                Pulse AI
+              </CardTitle>
+              <CardDescription className="text-muted-foreground mt-1">
+                {isRegister ? "创建新账户" : "登录到您的账户"}
+              </CardDescription>
             </div>
-          </form>
-        </CardContent>
-      </Card>
+          </CardHeader>
+
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {error && (
+                <div
+                  className={`p-3 rounded-lg text-sm ${
+                    error.includes("成功")
+                      ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
+                      : "bg-destructive/10 text-destructive border border-destructive/20"
+                  }`}
+                >
+                  {error}
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Input
+                  type="email"
+                  placeholder="邮箱地址"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="h-11 bg-background/50 border-border text-foreground placeholder:text-muted-foreground focus:ring-emerald-500/20 focus:border-emerald-500/50"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Input
+                  type="password"
+                  placeholder="密码"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={6}
+                  className="h-11 bg-background/50 border-border text-foreground placeholder:text-muted-foreground focus:ring-emerald-500/20 focus:border-emerald-500/50"
+                />
+              </div>
+
+              <Button
+                type="submit"
+                disabled={isLoading}
+                className="w-full h-11 bg-emerald-600 hover:bg-emerald-500 text-white font-medium rounded-lg"
+              >
+                {isLoading ? (
+                  <Loader2 size={18} className="animate-spin" />
+                ) : isRegister ? (
+                  "注册"
+                ) : (
+                  "登录"
+                )}
+              </Button>
+
+              <div className="text-center text-sm text-muted-foreground">
+                {isRegister ? (
+                  <>
+                    已有账户？{" "}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsRegister(false);
+                        setError("");
+                      }}
+                      className="text-emerald-400 hover:text-emerald-300 font-medium"
+                    >
+                      登录
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    没有账户？{" "}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsRegister(true);
+                        setError("");
+                      }}
+                      className="text-emerald-400 hover:text-emerald-300 font-medium"
+                    >
+                      注册
+                    </button>
+                  </>
+                )}
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      </motion.div>
     </div>
   );
 }

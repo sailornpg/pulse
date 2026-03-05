@@ -20,7 +20,7 @@ export class AuthController {
   ) {}
 
   @Post("login")
-  async login(@Body() body: any) {
+  async login(@Body() body: { email: string; password: string }) {
     const { email, password } = body;
     const { data, error } = await this.supabase
       .getClient()
@@ -28,13 +28,12 @@ export class AuthController {
         email,
         password,
       });
-
     if (error) throw new UnauthorizedException(error.message);
     return data;
   }
 
   @Post("register")
-  async register(@Body() body: any) {
+  async register(@Body() body: { email: string; password: string }) {
     const { email, password } = body;
     const { data, error } = await this.supabase.getClient().auth.signUp({
       email,

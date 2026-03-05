@@ -4,6 +4,29 @@
 
 @layer base {
   :root {
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+    --primary: 240 5.9% 10%;
+    --primary-foreground: 0 0% 98%;
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 240 10% 3.9%;
+    --radius: 0.75rem;
+  }
+
+  .dark {
     --background: 240 10% 3.9%;
     --foreground: 0 0% 98%;
     --card: 240 10% 3.9%;
@@ -23,7 +46,6 @@
     --border: 240 3.7% 15.9%;
     --input: 240 3.7% 15.9%;
     --ring: 240 4.9% 83.9%;
-    --radius: 0.75rem;
   }
 }
 
@@ -53,19 +75,19 @@
 
 /* Markdown 优化 */
 .prose {
-  @apply max-w-none text-zinc-300 leading-relaxed;
+  @apply max-w-none text-foreground leading-relaxed;
 }
 
 .prose h1, .prose h2, .prose h3 {
-  @apply text-zinc-100 font-semibold tracking-tight;
+  @apply text-foreground font-semibold tracking-tight;
 }
 
 .prose code {
-  @apply bg-zinc-800/50 px-1.5 py-0.5 rounded text-zinc-200 font-mono text-[0.9em] border border-zinc-700/30;
+  @apply bg-muted/50 px-1.5 py-0.5 rounded text-foreground font-mono text-[0.9em] border border-border;
 }
 
 .prose pre {
-  @apply bg-zinc-900/50 border border-zinc-800/80 rounded-xl p-4 my-6 overflow-x-auto;
+  @apply bg-muted border border-border rounded-xl p-4 my-6 overflow-x-auto;
 }
 
 .prose pre code {
@@ -77,13 +99,45 @@
 }
 
 .prose blockquote {
-  @apply border-l-2 border-zinc-700 pl-4 py-1 italic text-zinc-400 my-6;
+  @apply border-l-2 border-border pl-4 py-1 italic text-muted-foreground my-6;
 }
 
 .prose a {
-  @apply text-emerald-400 hover:text-emerald-300 transition-colors underline underline-offset-4 decoration-emerald-400/30;
+  @apply text-emerald-500 hover:text-emerald-400 transition-colors underline underline-offset-4 decoration-emerald-500/30;
 }
 
 .prose hr {
-  @apply my-4;
+  @apply my-4 border-border;
+}
+
+/* -------------------------------------------------------------------------- */
+/* View Transitions API Animations                                              */
+/* -------------------------------------------------------------------------- */
+
+/* 定义全屏渐变 */
+::view-transition-old(root) {
+  animation: 0.3s ease-in-out both fade-out;
+}
+::view-transition-new(root) {
+  animation: 0.3s ease-in-out both fade-in;
+}
+
+@keyframes fade-out {
+  to { opacity: 0; }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+}
+
+/* 给 Logo 特殊定制：因为它的 name 会绑定，原生的行为已经包含 morph（形变） */
+/* 我们只需调整时长让他不要那么急促即可更显优雅 */
+::view-transition-group(app-logo) {
+  animation-duration: 0.6s;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+::view-transition-old(app-logo),
+::view-transition-new(app-logo) {
+  /* 允许在位移中保留透明度和平滑过渡 */
+  mix-blend-mode: normal;
 }
