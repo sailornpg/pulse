@@ -5,6 +5,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Settings, User, Monitor, Shield, Bell, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -29,12 +30,12 @@ export default function SettingsDialog() {
         <Button
           variant="ghost"
           size="icon"
-          className="h-6 w-6 text-zinc-600 hover:text-zinc-400 hover:bg-zinc-800"
+          className="h-6 w-6 text-muted-foreground hover:text-foreground hover:bg-accent"
         >
           <Settings size={14} />
         </Button>
       </DialogTrigger>
-      <DialogContent className="max-w-3xl h-[500px] p-0 gap-0 bg-background border-border overflow-hidden flex flex-col md:flex-row">
+      <DialogContent className="max-w-4xl h-[650px] p-0 gap-0 bg-background border-border overflow-hidden flex flex-col md:flex-row">
         {/* 左侧 Aside 导航 */}
         <aside className="w-full md:w-56 border-r border-border bg-muted/20 flex flex-col p-4 gap-2">
           <div className="flex items-center gap-2 px-2 mb-4">
@@ -82,6 +83,10 @@ export default function SettingsDialog() {
             <DialogTitle className="text-foreground text-lg">
               {SETTINGS_TABS.find((t) => t.id === activeTab)?.label}
             </DialogTitle>
+            {/* 添加下面这一行 */}
+            <DialogDescription className="text-xs text-muted-foreground">
+              在这里调整您的个性化设置和偏好。
+            </DialogDescription>
           </DialogHeader>
 
           <div className="flex-1 overflow-y-auto p-6 text-muted-foreground space-y-6">

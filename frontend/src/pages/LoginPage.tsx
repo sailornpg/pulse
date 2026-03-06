@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { Sparkles, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { Logo } from "@/components/ui/Logo";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,7 +52,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="dark min-h-screen bg-background flex items-center justify-center p-4 relative overflow-hidden">
       {/* 3D 背景层: 从透明度 0 缓慢淡入，更长的时间给予震撼感 */}
       <motion.div
         initial={{ opacity: 0 }}
@@ -80,10 +81,10 @@ export default function LoginPage() {
               initial={{ scale: 0 }}
               animate={{ scale: 1, rotate: [0, 10, -10, 0] }}
               transition={{ delay: 0.8, type: "spring", damping: 10 }}
-              className="mx-auto w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20"
+              className="mx-auto w-16 h-12 flex items-center justify-center"
               style={{ viewTransitionName: "app-logo" }}
             >
-              <Sparkles size={24} className="text-emerald-500" />
+              <Logo size={60} />
             </motion.div>
             <div>
               <CardTitle className="text-2xl font-bold text-foreground">

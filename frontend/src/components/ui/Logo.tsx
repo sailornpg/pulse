@@ -1,0 +1,216 @@
+import React from "react";
+import { cn } from "@/lib/utils";
+
+interface LogoProps extends React.SVGProps<SVGSVGElement> {
+  size?: number | string;
+  showBackground?: boolean;
+}
+
+export function Logo({
+  size = 40,
+  showBackground = true,
+  className,
+  ...props
+}: LogoProps) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 800 600"
+      width={size}
+      height={typeof size === "number" ? (size * 3) / 4 : size}
+      className={cn("transition-all duration-300", className)}
+      {...props}
+    >
+      <defs>
+        {/* 背景深色渐变 */}
+        <radialGradient id="bgGrad" cx="50%" cy="50%" r="70%">
+          <stop offset="0%" stopColor="#0D2418" />
+          <stop offset="100%" stopColor="#040906" />
+        </radialGradient>
+
+        {/* 脉冲动态亮绿渐变 */}
+        <linearGradient id="neonGreen" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#00A859" />
+          <stop offset="50%" stopColor="#00FF87" />
+          <stop offset="100%" stopColor="#A8FF78" />
+        </linearGradient>
+
+        {/* 无限循环背景线的淡出渐变 */}
+        <linearGradient id="fadeGreen" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#00FF87" stopOpacity="0.0" />
+          <stop offset="20%" stopColor="#00FF87" stopOpacity="0.6" />
+          <stop offset="80%" stopColor="#00FF87" stopOpacity="0.6" />
+          <stop offset="100%" stopColor="#00FF87" stopOpacity="0.0" />
+        </linearGradient>
+
+        {/* 发光滤镜 */}
+        <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="8" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+
+        {/* 背景点阵纹理 */}
+        <pattern
+          id="dots"
+          x="0"
+          y="0"
+          width="20"
+          height="20"
+          patternUnits="userSpaceOnUse"
+        >
+          <circle cx="2" cy="2" r="1" fill="#00FF87" opacity="0.05" />
+        </pattern>
+      </defs>
+
+      {/* CSS 动画直接嵌入，避免外部依赖 */}
+      <style>{`
+        /* 脉冲光束动画类：设置光束长度为250，空隙为1500 */
+        .pulse-sweep {
+            stroke-dasharray: 250 1500;
+            /* 初始偏移量为250，刚好把光束隐藏在起点左侧 */
+            stroke-dashoffset: 250;
+            animation: sweepLoop 10s cubic-bezier(0.4, 0.0, 0.2, 1) infinite;
+        }
+
+        .infinity-track {
+            stroke-dasharray: 8 16;
+            animation: flow 1.5s linear infinite;
+        }
+
+        .float {
+            animation: floating 3s ease-in-out infinite alternate;
+        }
+
+        /* 脉冲划过动画：10秒周期 */
+        @keyframes sweepLoop {
+            /* 0% 到 25% (前 2.5 秒)：偏移量变化，光束从左向右飞速穿过整条线 */
+            0% {
+                stroke-dashoffset: 250;
+            }
+
+            25% {
+                stroke-dashoffset: -1200;
+            }
+
+            /* 25% 到 100% (剩余 7.5 秒)：光束在终点外隐藏，等待下一次爆发 */
+            100% {
+                stroke-dashoffset: -1200;
+            }
+        }
+
+        @keyframes flow {
+            to {
+                stroke-dashoffset: -24;
+            }
+        }
+
+        @keyframes floating {
+            0% {
+                transform: translateY(0px);
+            }
+
+            100% {
+                transform: translateY(-12px);
+            }
+        }
+      `}</style>
+
+      {/* 背景层 - 根据 prop 可选 */}
+      {showBackground && (
+        <>
+          <rect width="800" height="600" rx="24" fill="url(#bgGrad)" />
+          <rect width="800" height="600" rx="24" fill="url(#dots)" />
+        </>
+      )}
+
+      {/* 纯图标组 (向下平移 50px，使得失去文字后依然保持绝对居中) */}
+      <g transform="translate(0, 50)">
+        {/* 环境光晕 */}
+        <ellipse
+          cx="400"
+          cy="250"
+          rx="250"
+          ry="120"
+          fill="#00FF87"
+          opacity="0.08"
+          filter="url(#glow)"
+        />
+
+        {/* 中心水平扫描基准线 */}
+        <line
+          x1="80"
+          y1="250"
+          x2="720"
+          y2="250"
+          stroke="#00FF87"
+          strokeWidth="1"
+          opacity="0.15"
+          strokeDasharray="4 8"
+        />
+
+        {/* 动感无限符号 (流动能量背景) */}
+        <path
+          className="infinity-track"
+          d="M 400 250 C 340 130, 180 130, 180 250 C 180 370, 340 370, 400 250 C 460 130, 620 130, 620 250 C 620 370, 460 370, 400 250"
+          stroke="url(#fadeGreen)"
+          strokeWidth="3"
+          fill="none"
+          filter="url(#glow)"
+        />
+
+        {/* 1. 静态基础线 (一直存在的微光暗线轨道) */}
+        <path
+          d="M 120 250 L 280 250 L 325 160 L 390 380 L 445 110 L 495 250 L 680 250"
+          stroke="#00FF87"
+          strokeWidth="4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          fill="none"
+          opacity="0.15"
+          filter="url(#glow)"
+        />
+
+        {/* 2. 动态脉冲光束外部高光 (偶尔出现的"心跳") */}
+        <path
+          className="pulse-sweep"
+          d="M 120 250 L 280 250 L 325 160 L 390 380 L 445 110 L 495 250 L 680 250"
+          stroke="url(#neonGreen)"
+          strokeWidth="12"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          fill="none"
+          filter="url(#glow)"
+        />
+
+        {/* 3. 动态脉冲光束内部核心 (纯白增强霓虹感) */}
+        <path
+          className="pulse-sweep"
+          d="M 120 250 L 280 250 L 325 160 L 390 380 L 445 110 L 495 250 L 680 250"
+          stroke="#FFFFFF"
+          strokeWidth="4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          fill="none"
+          opacity="0.9"
+        />
+
+        {/* 能量溢出光点 (悬浮动画) */}
+        <g className="float" style={{ animationDelay: "0.0s" }}>
+          <circle cx="325" cy="125" r="5" fill="#FFFFFF" filter="url(#glow)" />
+        </g>
+        <g className="float" style={{ animationDelay: "0.8s" }}>
+          <circle cx="390" cy="415" r="7" fill="#00FF87" filter="url(#glow)" />
+          <circle cx="390" cy="415" r="3" fill="#FFFFFF" />
+        </g>
+        <g className="float" style={{ animationDelay: "1.5s" }}>
+          <circle cx="445" cy="75" r="8" fill="#00FF87" filter="url(#glow)" />
+          <circle cx="445" cy="75" r="4" fill="#FFFFFF" />
+        </g>
+      </g>
+    </svg>
+  );
+}

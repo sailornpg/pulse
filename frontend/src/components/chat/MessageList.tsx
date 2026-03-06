@@ -1,8 +1,9 @@
 import { memo } from "react";
 import type { Message } from "ai";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, Sparkles } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import { Logo } from "@/components/ui/Logo";
 import { ToolRenderer } from "../ToolRenderer";
 
 interface MessageListProps {
@@ -27,8 +28,8 @@ export const MessageList = memo(function MessageList({
             animate={{ opacity: 1, y: 0 }}
             className="flex flex-col items-center justify-center py-20 text-center"
           >
-            <div className="w-16 h-16 rounded-3xl bg-emerald-500/5 flex items-center justify-center border border-emerald-500/10 mb-6">
-              <Sparkles size={32} className="text-emerald-500/50" />
+            <div className="flex items-center justify-center mb-6">
+              <Logo size={160} showBackground={false} />
             </div>
             <h2 className="text-2xl font-bold text-foreground mb-2">
               有什么我可以帮您的吗？

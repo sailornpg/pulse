@@ -4,11 +4,16 @@ import {
   LogIn,
   LogOut,
   Settings,
-  Sparkles,
   MoreHorizontal,
   Trash2,
   Loader2,
+  MoreVertical,
+  History,
+  LayoutGrid,
+  Search,
+  Zap,
 } from "lucide-react";
+import { Logo } from "@/components/ui/Logo";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -57,22 +62,23 @@ export function Sidebar({
       className={`bg-background border-r border-border flex flex-col hidden md:flex shrink-0 transition-all duration-300 ${sidebarCollapsed ? "w-0 overflow-hidden" : "w-72"}`}
     >
       {!sidebarCollapsed && (
-        <div className="flex items-center gap-2 px-3 pt-5">
-          <div
-            className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center border border-emerald-500/20"
-            style={{ viewTransitionName: "app-logo" }}
-          >
-            <Sparkles size={16} className="text-emerald-500" />
+        <div className="h-16 flex items-center px-4 border-b border-border bg-background/50 backdrop-blur-sm sticky top-0 z-20">
+          <div className="flex items-center gap-3">
+            <div
+              className="flex items-center justify-center"
+              style={{ viewTransitionName: "app-logo" }}
+            >
+              <Logo size={48} showBackground={false} />
+            </div>
+            <div className="flex flex-col">
+              <h1 className="text-sm font-bold text-foreground tracking-tight">
+                PULSE AI
+              </h1>
+              <span className="text-[10px] text-emerald-500 font-mono font-medium tracking-widest opacity-80 uppercase">
+                v2.5.0
+              </span>
+            </div>
           </div>
-          <h1 className="text-sm font-bold tracking-tight text-foreground font-mono">
-            PULSE AI
-          </h1>
-          <Badge
-            variant="outline"
-            className="text-[10px] font-mono border-border text-muted-foreground px-2 py-0"
-          >
-            v2.5.0
-          </Badge>
         </div>
       )}
       <div className="px-3 my-4">
