@@ -34,17 +34,19 @@ export class SchedulerService {
   private async getActiveUsers(): Promise<string[]> {
     const client = this.supabase.getClient();
     const { data } = await client
-      .from('users')
-      .select('id')
-      .limit(100);
-    
-    return data?.map(u => u.id) || [];
+      .from('conversations')
+      .select('user_id')
+      .order('updated_at', { ascending: false })
+      .limit(500);
+
+    return [...new Set((data || []).map((row: any) => row.user_id).filter(Boolean))].slice(0, 100);
   }
 
   private async writeDiary(userId: string) {
     const client = this.supabase.getClient();
     const today = new Date().toISOString().split('T')[0];
     const filePath = `diary/${today}.md`;
+    const startOfDay = `${today}T00:00:00+00:00`;
 
     const existingFile = await this.agentService.getFile(userId, filePath);
     if (existingFile) {
@@ -52,13 +54,19 @@ export class SchedulerService {
       return;
     }
 
-    const { data: messages } = await client
-      .from('messages')
-      .select('content, role, created_at')
+    const { data: conversations } = await client
+      .from('conversations')
+      .select('messages(content, role, created_at)')
       .eq('user_id', userId)
-      .gte('created_at', `${today}T00:00:00+00:00`)
-      .order('created_at', { ascending: true })
-      .limit(50);
+      .gte('updated_at', startOfDay)
+      .order('updated_at', { ascending: false })
+      .limit(20);
+
+    const messages = (conversations || [])
+      .flatMap((conversation: any) => conversation.messages || [])
+      .filter((message: any) => message.created_at >= startOfDay)
+      .sort((left: any, right: any) => left.created_at.localeCompare(right.created_at))
+      .slice(0, 50);
 
     if (!messages || messages.length === 0) {
       this.logger.log(`[Agent] 用户 ${userId} 今日无对话，跳过`);

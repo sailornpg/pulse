@@ -83,6 +83,26 @@ export class HistoryService {
     return data || [];
   }
 
+  async getRecentMessages(
+    conversationId: string,
+    userId: string,
+    limit: number,
+    token?: string,
+  ): Promise<Message[]> {
+    await this.verifyConversationOwner(conversationId, userId, token);
+
+    const client = await this.getClient(token);
+    const { data, error } = await client
+      .from("messages")
+      .select("*")
+      .eq("conversation_id", conversationId)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+
+    if (error) throw error;
+    return (data || []).reverse();
+  }
+
   async addMessage(conversationId: string, userId: string, role: string, content: string, parts?: any, token?: string): Promise<Message> {
     const client = await this.getClient(token);
     

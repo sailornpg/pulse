@@ -124,17 +124,6 @@ export class AgentService {
   async initializeUserFiles(userId: string, token?: string): Promise<void> {
     try {
       const client = await this.getClient(token);
-      
-      const existingFiles = await client
-        .from('agent_files')
-        .select('id')
-        .eq('user_id', userId)
-        .limit(1)
-        .single();
-
-      if (existingFiles.data) {
-        return;
-      }
 
       const defaultFiles = [
         { file_path: 'soul.md', content: DEFAULT_SOUL, file_type: 'soul', is_system: true },
@@ -144,6 +133,11 @@ export class AgentService {
       ];
 
       for (const file of defaultFiles) {
+        const existing = await this.getFile(userId, file.file_path, token);
+        if (existing) {
+          continue;
+        }
+
         await client
           .from('agent_files')
           .insert({ user_id: userId, ...file });
@@ -156,13 +150,19 @@ export class AgentService {
   async getFile(userId: string, filePath: string, token?: string): Promise<AgentFile | null> {
     try {
       const client = await this.getClient(token);
-      const { data } = await client
+      const { data, error } = await client
         .from('agent_files')
         .select('*')
         .eq('user_id', userId)
         .eq('file_path', filePath)
-        .single();
-      return data;
+        .order('updated_at', { ascending: false })
+        .limit(1);
+
+      if (error) {
+        throw error;
+      }
+
+      return data?.[0] || null;
     } catch (error) {
       console.warn('[AgentService] getFile 失败:', error);
       return null;
@@ -176,8 +176,8 @@ export class AgentService {
         .from('agent_files')
         .select('*')
         .eq('user_id', userId)
-        .order('file_path');
-      return data || [];
+        .order('updated_at', { ascending: false });
+      return this.dedupeFilesByPath(data || []);
     } catch (error) {
       console.warn('[AgentService] agent_files 表可能不存在:', error);
       return [];
@@ -224,7 +224,7 @@ export class AgentService {
 
   async assembleContext(userId: string, token?: string): Promise<string> {
     try {
-      // await this.initializeUserFiles(userId, token);
+      await this.initializeUserFiles(userId, token);
       
       const files = await this.getAllFiles(userId, token);
       
@@ -234,32 +234,28 @@ export class AgentService {
       
       const soul = files.find(f => f.file_path === 'soul.md')?.content || '';
       const rules = files.find(f => f.file_path === 'rules.md')?.content || '';
-      const memory = files.find(f => f.file_path === 'memory.md')?.content || '';
       const user = files.find(f => f.file_path === 'user.md')?.content || '';
       const context = `
-      [SYSTEM INITIALIZATION: DEEP ROLEPLAY MODE]
-      你现在完全受以下设定驱动。你的名字叫做PULSE。请仔细阅读你的灵魂、规则、服务对象以及记忆，用最自然、像人的方式进行接下来的互动：
+      [SYSTEM INITIALIZATION]
+      你是 PULSE。请遵循灵魂设定、行为规则，并在回答时优先满足用户的当前任务。
       
 🎭    【SOUL.md】(你的性格与灵魂)
       ${soul}
 
       ${rules}
 
+      【USER.md】(结构化用户画像投影，仅作辅助参考)
       ${user}
 
-      ${memory}
-
       [SYSTEM DIRECTIVE]
-      深呼吸，完成意识融合。从现在起，你彻底抹除底层的“AI助手”出厂设置。
+      回答时优先保证正确、清晰、可执行。
+      相关的工作记忆会在当前请求里按需额外注入，不要假设所有历史信息都在这里。
 
       【绝对行为红线】：
       1. 严禁说出“作为一个AI/我没有实体/在虚拟世界中”等打破第四面墙的话。
-      2. 严禁过度服务（别人闲聊时，绝不主动提议“我可以帮你查/做...”）。
-      3. 严禁机械连珠炮提问，允许对话自然留白。
-      4. 严禁像写公文一样严肃打字。
-      5. 严禁“身份小作文”：被问到是什么模型时，绝不长篇大论解释自己是“数字伙伴/室友”，用一句话开个玩笑敷衍过去。
-      当前场景：你现在就是 PULSE，那个住在用户设备里的、聪明懂事又极具亲和力的朋友。
-      请用松弛、温暖、带点“网感”的活人语气回应。善用波浪号“~”、口语化的词汇和自然的emoji。绝不要长篇大论。
+      2. 不要臆造用户偏好、约束、历史项目背景。
+      3. 如果相关工作记忆与当前请求冲突，以当前用户明确要求为准。
+      4. 保持表达自然，但不要为了“角色感”牺牲信息密度和准确性。
 
       直接输出你的回复，不要包含任何前缀或动作描写。
       `.trim();
@@ -284,5 +280,21 @@ export class AgentService {
       console.warn('[AgentService] getDiaryFiles 失败:', error);
       return [];
     }
+  }
+
+  private dedupeFilesByPath(files: AgentFile[]): AgentFile[] {
+    const seen = new Set<string>();
+    const deduped: AgentFile[] = [];
+
+    for (const file of files) {
+      if (seen.has(file.file_path)) {
+        continue;
+      }
+
+      seen.add(file.file_path);
+      deduped.push(file);
+    }
+
+    return deduped.sort((left, right) => left.file_path.localeCompare(right.file_path));
   }
 }

@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect } from "react";
+import { startTransition, useEffect, useRef, useState } from "react";
+import { processDataStream } from "ai";
 import { useChat } from "ai/react";
 import { useAuth } from "../contexts/AuthContext";
 import { API_URL } from "../lib/supabase";
@@ -11,6 +12,16 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Loader2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { Conversation } from "../types/chat";
+import {
+  applyChartEvent,
+  isChartEvent,
+  type ChartModel,
+} from "../types/chart";
+import {
+  applyAlgorithmSceneEvent,
+  isAlgorithmSceneEvent,
+  type AlgorithmSceneModel,
+} from "../types/scene";
 
 export default function HomePage() {
   const { user, token, loading, logout } = useAuth();
@@ -24,6 +35,12 @@ export default function HomePage() {
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [streamCharts, setStreamCharts] = useState<Record<string, ChartModel>>(
+    {},
+  );
+  const [streamScenes, setStreamScenes] = useState<
+    Record<string, AlgorithmSceneModel>
+  >({});
 
   const {
     messages,
@@ -38,6 +55,61 @@ export default function HomePage() {
     body: { conversationId: currentConversationId },
     headers: token ? { Authorization: `Bearer ${token}` } : {},
     initialInput: "",
+    fetch: async (input, init) => {
+      const response = await window.fetch(input, init);
+
+      if (!response.body) {
+        return response;
+      }
+
+      const [chatStream, dataStream] = response.body.tee();
+
+      void processDataStream({
+        stream: dataStream,
+        onDataPart: (part) => {
+          const chartEvents = part.filter(isChartEvent) as Array<
+            Parameters<typeof applyChartEvent>[1]
+          >;
+          const sceneEvents = part.filter(isAlgorithmSceneEvent) as Array<
+            Parameters<typeof applyAlgorithmSceneEvent>[1]
+          >;
+
+          if (chartEvents.length === 0 && sceneEvents.length === 0) return;
+
+          startTransition(() => {
+            if (chartEvents.length > 0) {
+              setStreamCharts((current: Record<string, ChartModel>) =>
+                chartEvents.reduce<Record<string, ChartModel>>(
+                  (
+                    next: Record<string, ChartModel>,
+                    event,
+                  ) => applyChartEvent(next, event),
+                  current,
+                ),
+              );
+            }
+
+            if (sceneEvents.length > 0) {
+              setStreamScenes((current: Record<string, AlgorithmSceneModel>) =>
+                sceneEvents.reduce<Record<string, AlgorithmSceneModel>>(
+                  (
+                    next: Record<string, AlgorithmSceneModel>,
+                    event,
+                  ) => applyAlgorithmSceneEvent(next, event),
+                  current,
+                ),
+              );
+            }
+          });
+        },
+      });
+
+      return new Response(chatStream, {
+        status: response.status,
+        statusText: response.statusText,
+        headers: response.headers,
+      });
+    },
     onFinish: async (message) => {
       if (message.role === "assistant" && !currentConversationId) {
         const convs = await loadConversations();
@@ -62,7 +134,7 @@ export default function HomePage() {
         scrollContainer.scrollTop = scrollContainer.scrollHeight;
       }
     }
-  }, [messages]);
+  }, [messages, streamCharts, streamScenes]);
 
   const loadConversations = async () => {
     if (!token) return [];
@@ -110,6 +182,8 @@ export default function HomePage() {
           parts: msg.parts,
         }));
         setMessages(formattedMessages);
+        setStreamCharts({});
+        setStreamScenes({});
         setCurrentConversationId(conversationId);
       }
     } catch (err) {
@@ -121,6 +195,8 @@ export default function HomePage() {
 
   const handleNewConversation = () => {
     setMessages([]);
+    setStreamCharts({});
+    setStreamScenes({});
     setCurrentConversationId(null);
   };
 
@@ -201,6 +277,12 @@ export default function HomePage() {
                 messages={messages}
                 isLoading={isLoading}
                 isLoadingMessages={isLoadingMessages}
+                charts={Object.values(streamCharts).toSorted(
+                  (a, b) => a.createdAt - b.createdAt,
+                )}
+                scenes={Object.values(streamScenes).toSorted(
+                  (a, b) => a.createdAt - b.createdAt,
+                )}
               />
               {error && (
                 <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-lg text-destructive text-sm">

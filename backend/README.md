@@ -36,6 +36,10 @@ backend/src/
 │   ├── history.controller.ts   # 会话与消息 CRUD 接口
 │   ├── history.service.ts      # 历史记录业务逻辑
 │   └── history.module.ts      # 历史记录模块定义
+├── rag/                       # RAG 知识库模块
+│   ├── rag.controller.ts      # 知识库文档管理接口
+│   ├── rag.service.ts         # 文档切块、向量索引、检索与上下文组装
+│   └── rag.module.ts          # RAG 模块定义
 ├── supabase/                  # Supabase 集成
 │   ├── supabase.service.ts    # Supabase 客户端封装
 │   └── supabase.module.ts    # Supabase 模块定义
@@ -64,9 +68,56 @@ npm install
 # .env
 DEEPSEEK_API_KEY=your_deepseek_api_key
 TAVILY_API_KEY=your_tavily_api_key
+EMBEDDING_API_KEY=optional_for_rag_and_memory_embeddings
+EMBEDDING_MODEL=Qwen/Qwen3-Embedding-4B
+EMBEDDING_BASE_URL=optional_openai_compatible_base_url_to_v1
+EMBEDDING_DIMENSIONS=2560
+OPENAI_API_KEY=optional_legacy_embedding_key
 SUPABASE_URL=your_supabase_project_url
 SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=required_for_default_rag_documents
+RAG_ADMIN_KEY=required_for_default_rag_documents_api
 ```
+
+如果你要启用 RAG 或结构化记忆的语义召回，优先配置 `EMBEDDING_API_KEY`、`EMBEDDING_MODEL` 与可选的 `EMBEDDING_BASE_URL`。当前实现使用 OpenAI 兼容 embedding 接口，因此可以接 OpenAI，也可以接支持兼容协议的国内服务或自建推理服务。
+
+推荐的 Qwen 方案：
+
+```bash
+# 例 1：使用 OpenAI 兼容网关 / 自建 vLLM / ModelScope Proxy 等
+EMBEDDING_API_KEY=your_embedding_api_key
+EMBEDDING_MODEL=Qwen/Qwen3-Embedding-4B
+EMBEDDING_BASE_URL=https://your-openai-compatible-endpoint/v1
+EMBEDDING_DIMENSIONS=2560
+
+# 例 2：继续使用 OpenAI 老配置（向后兼容）
+OPENAI_API_KEY=your_openai_api_key
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+OPENAI_EMBEDDING_DIMENSIONS=1536
+```
+
+如果你接的是特定托管平台，而它要求不同的模型 ID，例如某些平台使用 `text-embedding-v4`，只需要改 `EMBEDDING_MODEL`，代码不用再动。
+
+注意：`EMBEDDING_BASE_URL` 要填写到服务根路径，例如 `https://api.siliconflow.cn/v1`，不要填写成完整的 `.../v1/embeddings`，因为 SDK 会自动拼接接口路径。
+
+如果你切换了 embedding 模型，还要保证 Supabase 中 `rag_documents.embedding` 的向量维度一致。例如：
+
+- `Qwen/Qwen3-Embedding-4B` 通常是 `2560` 维
+- `text-embedding-3-small` 通常是 `1536` 维
+
+当前项目默认 SQL 是 `1536` 维。如果你改用 Qwen，请额外执行：
+
+```sql
+\i sql/rag_documents_qwen_2560.sql
+```
+
+调试 RAG 召回时，还可以额外配置：
+
+```bash
+RAG_RETRIEVAL_MIN_SCORE=0.05
+```
+
+当前默认值就是 `0.05`。如果你发现文档已经入库，但提问时始终没有被注入，可以先观察后端日志里的 `retrieval summary` 和 `context summary`，再决定是否继续下调阈值。
 
 ### 3. 配置 Supabase 数据库
 
@@ -165,7 +216,42 @@ ALTER TABLE agent_files ENABLE ROW LEVEL SECURITY;
 -- AI 灵魂文件表策略
 CREATE POLICY "用户只能管理自己的 AI 文件" ON agent_files
   FOR ALL USING (auth.uid()::text = user_id);
+
+-- 创建结构化记忆表
+CREATE TABLE IF NOT EXISTS memory_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL,
+  canonical_key TEXT NOT NULL,
+  content TEXT NOT NULL,
+  keywords JSONB DEFAULT '[]'::jsonb,
+  status TEXT NOT NULL DEFAULT 'active',
+  confidence DOUBLE PRECISION DEFAULT 0.7,
+  source_conversation_id UUID REFERENCES conversations(id) ON DELETE SET NULL,
+  source_message_id UUID,
+  embedding JSONB,
+  last_seen_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  supersedes_id UUID REFERENCES memory_items(id) ON DELETE SET NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_memory_items_user_status
+  ON memory_items(user_id, status, updated_at DESC);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_memory_items_user_active_key
+  ON memory_items(user_id, canonical_key)
+  WHERE status = 'active';
+
+ALTER TABLE memory_items ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "用户只能管理自己的结构化记忆" ON memory_items
+  FOR ALL USING (auth.uid() = user_id);
 ```
+
+如果你要启用新的记忆链路，先执行 `sql/memory_items.sql`。
+
+如果你要启用 RAG 知识库，再额外执行 `sql/rag_documents.sql`。
 
 ### 4. 启动服务
 
@@ -249,6 +335,92 @@ Authorization: Bearer <jwt_token>  // 可选，未登录用户可使用
 
 **响应**
 AI SDK 格式的流式文本，供前端 `useChat` hook 消费。
+
+当用户已登录且知识库中存在相关文档时，后端会在生成答案前自动执行一次检索，并把命中的片段注入系统提示词中的 `Relevant Knowledge Base` 上下文块。
+
+### 知识库接口
+
+所有 RAG 接口都需要 Bearer Token。
+
+#### `GET /rag/documents`
+列出当前用户已索引的知识库文档摘要。可选 `?includeDefault=true` 一并返回默认共享文档。
+
+#### `POST /rag/documents`
+写入或覆盖一个知识库文档，并自动切块和建立向量索引。支持通过 `knowledgeBaseName` 指定目标知识库名称。
+
+**请求体**
+```json
+{
+  "documentId": "optional-doc-id",
+  "knowledgeBaseName": "产品知识库",
+  "title": "项目说明",
+  "source": "README",
+  "content": "这里是一整段要入库的知识内容",
+  "tags": ["docs", "project"]
+}
+```
+
+#### `GET /rag/knowledge-bases`
+列出当前用户的知识库摘要。可选 `?includeDefault=true` 一并返回默认共享知识库。
+
+#### `POST /rag/documents/upload`
+使用 `multipart/form-data` 上传并索引文件到指定知识库。
+
+**表单字段**
+- `knowledgeBaseName`: 目标知识库名字
+- `files`: 一个或多个文件
+
+**支持格式**
+- Markdown：`.md`, `.markdown`
+- HTML：`.html`, `.htm`
+- PDF：`.pdf`
+- Text：`.txt`
+
+#### `POST /rag/documents/import-url`
+抓取一个 HTML 地址并解析正文，再写入指定知识库。
+
+**请求体**
+```json
+{
+  "url": "https://example.com/page.html",
+  "title": "可选标题覆盖",
+  "knowledgeBaseName": "网页资料库"
+}
+```
+
+#### `DELETE /rag/documents/:documentId`
+删除指定知识库文档及其所有切块。
+
+### 默认共享知识库接口
+
+这组接口用于维护所有用户都可读取的默认文档。它们不使用普通 Bearer Token，而是要求请求头 `x-rag-admin-key` 与 `RAG_ADMIN_KEY` 匹配，并且后端配置了 `SUPABASE_SERVICE_ROLE_KEY`。
+
+#### `GET /rag/default-documents`
+列出当前所有默认共享文档。
+
+#### `POST /rag/default-documents`
+写入或覆盖一个默认共享文档。
+
+**请求体**
+```json
+{
+  "documentId": "default_onboarding",
+  "title": "平台默认说明",
+  "source": "system",
+  "content": "这里是所有用户都可检索到的默认知识内容",
+  "tags": ["default", "onboarding"]
+}
+```
+
+#### `DELETE /rag/default-documents/:documentId`
+删除一个默认共享文档。
+
+### 默认文档的检索行为
+
+- 聊天时会优先检索当前用户自己的知识文档。
+- 同时还会检索 `scope=default` 的默认共享文档。
+- 两边结果会合并排序后注入 `Relevant Knowledge Base`，其中用户私有知识会有轻微优先级提升。
+- URL 导入依赖后端运行环境具备对目标网页的网络访问能力；如果后端无法出网，`/rag/documents/import-url` 会失败。
 
 ### 历史记录接口
 

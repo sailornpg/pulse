@@ -1,21 +1,187 @@
-import { memo } from "react";
+import {
+  memo,
+  isValidElement,
+  type CSSProperties,
+  type ComponentPropsWithoutRef,
+  type ReactNode,
+} from "react";
 import type { Message } from "ai";
 import { motion, AnimatePresence } from "framer-motion";
 import { Loader2 } from "lucide-react";
-import ReactMarkdown from "react-markdown";
+import ReactMarkdown, {
+  type Components,
+  type ExtraProps,
+} from "react-markdown";
+import { PrismLight as SyntaxHighlighter } from "react-syntax-highlighter";
+import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
+import typescript from "react-syntax-highlighter/dist/esm/languages/prism/typescript";
+import tsx from "react-syntax-highlighter/dist/esm/languages/prism/tsx";
+import javascript from "react-syntax-highlighter/dist/esm/languages/prism/javascript";
+import jsx from "react-syntax-highlighter/dist/esm/languages/prism/jsx";
+import json from "react-syntax-highlighter/dist/esm/languages/prism/json";
+import bash from "react-syntax-highlighter/dist/esm/languages/prism/bash";
+import markdown from "react-syntax-highlighter/dist/esm/languages/prism/markdown";
+import python from "react-syntax-highlighter/dist/esm/languages/prism/python";
+import java from "react-syntax-highlighter/dist/esm/languages/prism/java";
+import sql from "react-syntax-highlighter/dist/esm/languages/prism/sql";
+import css from "react-syntax-highlighter/dist/esm/languages/prism/css";
+import markup from "react-syntax-highlighter/dist/esm/languages/prism/markup";
+import yaml from "react-syntax-highlighter/dist/esm/languages/prism/yaml";
+import powershell from "react-syntax-highlighter/dist/esm/languages/prism/powershell";
+import diff from "react-syntax-highlighter/dist/esm/languages/prism/diff";
 import { Logo } from "@/components/ui/Logo";
 import { ToolRenderer } from "../ToolRenderer";
+import { StreamChartCard } from "../charts/StreamChartCard";
+import type { ChartModel } from "@/types/chart";
+import type { AlgorithmSceneModel } from "@/types/scene";
+import { StreamAlgorithmSceneCard } from "../scenes/StreamAlgorithmSceneCard";
+
+SyntaxHighlighter.registerLanguage("typescript", typescript);
+SyntaxHighlighter.registerLanguage("tsx", tsx);
+SyntaxHighlighter.registerLanguage("javascript", javascript);
+SyntaxHighlighter.registerLanguage("jsx", jsx);
+SyntaxHighlighter.registerLanguage("json", json);
+SyntaxHighlighter.registerLanguage("bash", bash);
+SyntaxHighlighter.registerLanguage("markdown", markdown);
+SyntaxHighlighter.registerLanguage("python", python);
+SyntaxHighlighter.registerLanguage("java", java);
+SyntaxHighlighter.registerLanguage("sql", sql);
+SyntaxHighlighter.registerLanguage("css", css);
+SyntaxHighlighter.registerLanguage("markup", markup);
+SyntaxHighlighter.registerLanguage("yaml", yaml);
+SyntaxHighlighter.registerLanguage("powershell", powershell);
+SyntaxHighlighter.registerLanguage("diff", diff);
+
+type MarkdownCodeProps = ComponentPropsWithoutRef<"code"> & ExtraProps;
+type MarkdownPreProps = ComponentPropsWithoutRef<"pre"> & ExtraProps;
+
+const LANGUAGE_ALIASES: Record<string, string> = {
+  ts: "typescript",
+  tsx: "tsx",
+  js: "javascript",
+  jsx: "jsx",
+  json: "json",
+  sh: "bash",
+  shell: "bash",
+  zsh: "bash",
+  bash: "bash",
+  md: "markdown",
+  py: "python",
+  html: "markup",
+  xml: "markup",
+  svg: "markup",
+  yml: "yaml",
+  ps1: "powershell",
+  ps: "powershell",
+};
+
+const extractTextContent = (children: ReactNode): string => {
+  if (typeof children === "string" || typeof children === "number") {
+    return String(children);
+  }
+
+  if (Array.isArray(children)) {
+    return children.map(extractTextContent).join("");
+  }
+
+  if (isValidElement(children)) {
+    return extractTextContent(children.props.children);
+  }
+
+  return "";
+};
+
+const getCodeLanguage = (className?: string) => {
+  const match = /language-([\w-]+)/.exec(className || "");
+  const detected = match?.[1]?.toLowerCase();
+
+  if (!detected) {
+    return undefined;
+  }
+
+  return LANGUAGE_ALIASES[detected] ?? detected;
+};
+
+const MarkdownPre = ({ node: _node, children }: MarkdownPreProps) => <>{children}</>;
+
+const MarkdownCode = ({
+  node: _node,
+  className,
+  children,
+  style: _style,
+  ...props
+}: MarkdownCodeProps) => {
+  const code = extractTextContent(children).replace(/\n$/, "");
+  const language = getCodeLanguage(className);
+  const isBlockCode = Boolean(language) || code.includes("\n");
+
+  if (!isBlockCode) {
+    return (
+      <code className={className} {...props}>
+        {children}
+      </code>
+    );
+  }
+
+  const lineCount = code.split("\n").length;
+
+  return (
+    <div className="markdown-code-block">
+      <div className="markdown-code-header">
+        <span className="markdown-code-language">{language ?? "text"}</span>
+      </div>
+      <div className="markdown-code-body">
+        <SyntaxHighlighter
+          language={language}
+          style={syntaxHighlightTheme}
+          PreTag="div"
+          customStyle={{
+            margin: 0,
+            background: "transparent",
+            padding: "1rem 1.25rem",
+            fontSize: "0.875rem",
+            lineHeight: 1.7,
+          }}
+          codeTagProps={{
+            className: "font-mono",
+          }}
+          lineNumberStyle={{
+            minWidth: "2.25rem",
+            paddingRight: "1rem",
+            color: "rgba(148, 163, 184, 0.5)",
+            userSelect: "none",
+          }}
+          showLineNumbers={lineCount > 4}
+          wrapLongLines={false}
+        >
+          {code}
+        </SyntaxHighlighter>
+      </div>
+    </div>
+  );
+};
+
+const markdownComponents: Components = {
+  pre: MarkdownPre,
+  code: MarkdownCode,
+};
+
+const syntaxHighlightTheme = oneDark as { [key: string]: CSSProperties };
 
 interface MessageListProps {
   messages: Message[];
   isLoading: boolean;
   isLoadingMessages?: boolean;
+  charts?: ChartModel[];
+  scenes?: AlgorithmSceneModel[];
 }
 
 export const MessageList = memo(function MessageList({
   messages,
   isLoading,
   isLoadingMessages,
+  charts = [],
+  scenes = [],
 }: MessageListProps) {
   const showLoading = isLoading || isLoadingMessages;
 
@@ -60,7 +226,9 @@ export const MessageList = memo(function MessageList({
                           key={`text-${i}`}
                           className="text-foreground leading-relaxed prose prose-zinc dark:prose-invert max-w-none"
                         >
-                          <ReactMarkdown>{part.text}</ReactMarkdown>
+                          <ReactMarkdown components={markdownComponents}>
+                            {part.text}
+                          </ReactMarkdown>
                         </div>
                       );
                     }
@@ -92,7 +260,9 @@ export const MessageList = memo(function MessageList({
                           : "text-foreground leading-relaxed"
                       }`}
                     >
-                      <ReactMarkdown>{m.content}</ReactMarkdown>
+                      <ReactMarkdown components={markdownComponents}>
+                        {m.content}
+                      </ReactMarkdown>
                     </div>
                   </>
                 )}
@@ -101,6 +271,39 @@ export const MessageList = memo(function MessageList({
           </motion.div>
         ))}
       </AnimatePresence>
+
+      {charts.filter((chart) => chart.status !== "done").length > 0 && (
+        <div className="space-y-4">
+          {charts
+            .filter((chart) => chart.status !== "done")
+            .map((chart) => (
+            <motion.div
+              key={chart.chartId}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.25, ease: "easeOut" }}
+            >
+              <StreamChartCard model={chart} />
+            </motion.div>
+          ))}
+        </div>
+      )}
+      {scenes.filter((scene) => scene.status !== "ready").length > 0 && (
+        <div className="space-y-4">
+          {scenes
+            .filter((scene) => scene.status !== "ready")
+            .map((scene) => (
+              <motion.div
+                key={scene.sceneId}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.25, ease: "easeOut" }}
+              >
+                <StreamAlgorithmSceneCard model={scene} />
+              </motion.div>
+            ))}
+        </div>
+      )}
 
       {showLoading &&
         (messages.length === 0 ||

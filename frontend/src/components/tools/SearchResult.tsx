@@ -1,5 +1,10 @@
-import React from "react";
-import { ExternalLink, Globe, Image as ImageIcon, Quote } from "lucide-react";
+import {
+  ExternalLink,
+  Globe,
+  Image as ImageIcon,
+  Search,
+  Sparkles,
+} from "lucide-react";
 
 interface TavilyResult {
   title: string;
@@ -19,27 +24,171 @@ interface SearchResultProps {
   args?: any;
 }
 
-export function SearchResult({ result, args }: SearchResultProps) {
-  // 处理可能的结果格式
-  // Tavily MCP 通常返回 content 数组，其中第一项可能是 JSON 字符串，也可能是结构化对象
-  let data: TavilyResult[] = [];
-  let images: TavilyImage[] = [];
+function isRecord(value: unknown): value is Record<string, any> {
+  return typeof value === "object" && value !== null;
+}
 
-  try {
-    // 假设 result 是 MCP 返回的原始 content 数组
-    const content = Array.isArray(result)
-      ? result[0]?.text || result[0]
-      : result;
-    const parsed = typeof content === "string" ? JSON.parse(content) : content;
+function isTavilyResult(value: unknown): value is TavilyResult {
+  return (
+    isRecord(value) &&
+    typeof value.title === "string" &&
+    typeof value.url === "string" &&
+    typeof value.content === "string"
+  );
+}
 
-    // Tavily 的返回结构通常是 { results: [...], images: [...] }
-    data = parsed.results || (Array.isArray(parsed) ? parsed : []);
-    images = parsed.images || [];
-  } catch (e) {
-    console.warn("Failed to parse search results", e);
+function isTavilyImage(value: unknown): value is TavilyImage {
+  return isRecord(value) && typeof value.url === "string";
+}
+
+function tryParseJson(value: unknown) {
+  if (typeof value !== "string") {
+    return value;
   }
 
-  if (!data || data.length === 0) {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+}
+
+function parseDetailedResultsText(text: string): {
+  results: TavilyResult[];
+  images: TavilyImage[];
+} {
+  const normalized = text.replace(/\r\n/g, "\n").trim();
+
+  if (!normalized.includes("Title:") || !normalized.includes("URL:")) {
+    return { results: [], images: [] };
+  }
+
+  const results: TavilyResult[] = [];
+  const entryPattern =
+    /Title:\s*(.+?)\nURL:\s*(.+?)\nContent:\s*([\s\S]*?)(?=\n{2,}Title:|\nTitle:|$)/g;
+
+  for (const match of normalized.matchAll(entryPattern)) {
+    const title = match[1]?.trim();
+    const url = match[2]?.trim();
+    const content = match[3]?.trim();
+
+    if (!title || !url || !content) {
+      continue;
+    }
+
+    results.push({
+      title,
+      url,
+      content,
+    });
+  }
+
+  return { results, images: [] };
+}
+
+function normalizeSearchPayload(input: unknown): {
+  results: TavilyResult[];
+  images: TavilyImage[];
+} {
+  const queue = Array.isArray(input) ? [...input] : [input];
+  const results: TavilyResult[] = [];
+  const images: TavilyImage[] = [];
+
+  while (queue.length > 0) {
+    const current = tryParseJson(queue.shift());
+
+    if (Array.isArray(current)) {
+      queue.unshift(...current);
+      continue;
+    }
+
+    if (typeof current === "string") {
+      const parsedTextPayload = parseDetailedResultsText(current);
+
+      if (parsedTextPayload.results.length > 0 || parsedTextPayload.images.length > 0) {
+        results.push(...parsedTextPayload.results);
+        images.push(...parsedTextPayload.images);
+      }
+
+      continue;
+    }
+
+    if (isTavilyResult(current)) {
+      results.push(current);
+      continue;
+    }
+
+    if (isTavilyImage(current)) {
+      images.push(current);
+      continue;
+    }
+
+    if (!isRecord(current)) {
+      continue;
+    }
+
+    if (Array.isArray(current.results)) {
+      queue.unshift(...current.results);
+    }
+
+    if (Array.isArray(current.images)) {
+      queue.unshift(...current.images);
+    }
+
+    if (typeof current.text === "string") {
+      queue.unshift(current.text);
+    }
+  }
+
+  const dedupedResults = Array.from(
+    new Map(
+      results.map((item) => [
+        `${item.url}::${item.title}::${item.content}`,
+        item,
+      ]),
+    ).values(),
+  );
+
+  const dedupedImages = Array.from(
+    new Map(images.map((item) => [item.url, item])).values(),
+  );
+
+  return {
+    results: dedupedResults,
+    images: dedupedImages,
+  };
+}
+
+function formatHostname(url: string) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+}
+
+function formatPublishedDate(date?: string) {
+  if (!date) {
+    return null;
+  }
+
+  const value = new Date(date);
+
+  if (Number.isNaN(value.getTime())) {
+    return date;
+  }
+
+  return new Intl.DateTimeFormat("zh-CN", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  }).format(value);
+}
+
+export function SearchResult({ result, args }: SearchResultProps) {
+  const { results, images } = normalizeSearchPayload(result);
+
+  if (results.length === 0) {
     return (
       <div className="p-3 space-y-2">
         <div className="text-muted-foreground text-[11px] italic">
@@ -63,85 +212,114 @@ export function SearchResult({ result, args }: SearchResultProps) {
   }
 
   return (
-    <div className="space-y-6">
-      {/* 1. 来源引用卡片 (Citations) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {data.slice(0, 4).map((item, idx) => (
-          <a
-            key={idx}
-            href={item.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group flex items-start gap-3 p-3 bg-muted/30 rounded-xl border border-border hover:bg-accent/50 hover:border-accent transition-all duration-300"
-          >
-            <div className="mt-1 p-1.5 bg-muted rounded-lg group-hover:bg-blue-500/10 group-hover:text-blue-500 transition-colors">
-              <Globe size={14} />
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3 rounded-2xl border border-emerald-500/15 bg-[linear-gradient(180deg,rgba(16,185,129,0.08),rgba(16,185,129,0.02))] px-4 py-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-emerald-500/20 bg-emerald-500/10 text-emerald-500">
+            <Search size={16} />
+          </div>
+          <div className="min-w-0">
+            <div className="text-[12px] font-semibold text-foreground">
+              搜索结果列表
             </div>
-            <div className="flex-1 min-w-0">
-              <h4 className="text-[12px] font-medium text-foreground line-clamp-1 group-hover:text-blue-500">
-                {item.title}
-              </h4>
-              <p className="text-[10px] text-muted-foreground mt-0.5 truncate flex items-center gap-1">
-                {new URL(item.url).hostname}
-                <ExternalLink size={8} />
-              </p>
+            <div className="text-[11px] text-muted-foreground">
+              共 {results.length} 条结果
+              {images.length > 0 ? `，${images.length} 张图片` : ""}
             </div>
-          </a>
-        ))}
+          </div>
+        </div>
+        <div className="hidden items-center gap-1.5 rounded-full border border-emerald-500/15 bg-background/70 px-3 py-1 text-[10px] font-medium text-emerald-600 dark:text-emerald-300 sm:flex">
+          <Sparkles size={11} />
+          <span>Tavily Search</span>
+        </div>
       </div>
 
-      {/* 2. 图片展示 (如果有) */}
+      <div className="space-y-3">
+        {results.map((item, idx) => {
+          const publishedDate = formatPublishedDate(item.published_date);
+
+          return (
+            <a
+              key={`${item.url}-${idx}`}
+              href={item.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="group block rounded-2xl border border-border bg-muted/25 p-4 transition-colors duration-200 hover:border-emerald-500/25 hover:bg-accent/30"
+            >
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border bg-background text-[11px] font-semibold text-muted-foreground group-hover:border-emerald-500/20 group-hover:text-emerald-500">
+                  {idx + 1}
+                </div>
+
+                <div className="min-w-0 flex-1 space-y-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="inline-flex items-center gap-1 rounded-full border border-border bg-background/80 px-2.5 py-1 text-[10px] text-muted-foreground">
+                      <Globe size={10} />
+                      {formatHostname(item.url)}
+                    </span>
+                    {publishedDate ? (
+                      <span className="inline-flex rounded-full border border-border bg-background/80 px-2.5 py-1 text-[10px] text-muted-foreground">
+                        {publishedDate}
+                      </span>
+                    ) : null}
+                    {typeof item.score === "number" ? (
+                      <span className="inline-flex rounded-full border border-emerald-500/15 bg-emerald-500/8 px-2.5 py-1 text-[10px] text-emerald-700 dark:text-emerald-300">
+                        相关度 {item.score.toFixed(2)}
+                      </span>
+                    ) : null}
+                  </div>
+
+                  <div className="flex items-start justify-between gap-3">
+                    <h4 className="min-w-0 text-[14px] font-semibold leading-6 text-foreground transition-colors group-hover:text-emerald-600 dark:group-hover:text-emerald-300">
+                      {item.title}
+                    </h4>
+                    <ExternalLink
+                      size={14}
+                      className="mt-1 shrink-0 text-muted-foreground transition-colors group-hover:text-emerald-500"
+                    />
+                  </div>
+
+                  <p className="text-[12px] leading-6 text-muted-foreground">
+                    {item.content}
+                  </p>
+                </div>
+              </div>
+            </a>
+          );
+        })}
+      </div>
+
       {images.length > 0 && (
-        <div className="space-y-3">
-          <div className="flex items-center gap-2 text-muted-foreground text-[11px] font-medium uppercase tracking-wider">
+        <div className="space-y-3 rounded-2xl border border-border bg-muted/20 p-4">
+          <div className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-[0.2em] text-muted-foreground">
             <ImageIcon size={12} />
-            <span>相关图片资源</span>
+            <span>相关图片</span>
           </div>
-          <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+          <div className="flex gap-3 overflow-x-auto pb-1">
             {images.map((img, idx) => (
-              <div
-                key={idx}
-                className="flex-shrink-0 w-32 h-24 rounded-lg overflow-hidden border border-border bg-muted group relative"
+              <a
+                key={`${img.url}-${idx}`}
+                href={img.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group relative h-24 w-32 shrink-0 overflow-hidden rounded-xl border border-border bg-muted"
               >
                 <img
                   src={img.url}
-                  alt={img.description}
-                  className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                  onError={(e) => (e.currentTarget.style.display = "none")}
+                  alt={img.description || `搜索结果图片 ${idx + 1}`}
+                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                  }}
                 />
-                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <div className="absolute inset-0 flex items-center justify-center bg-black/35 opacity-0 transition-opacity group-hover:opacity-100">
                   <ExternalLink size={14} className="text-white" />
                 </div>
-              </div>
+              </a>
             ))}
           </div>
         </div>
       )}
-
-      {/* 3. 详细片段 (Snippets) */}
-      <div className="space-y-3 pt-2">
-        <div className="flex items-center gap-2 text-muted-foreground text-[11px] font-medium uppercase tracking-wider border-b border-border pb-2">
-          <Quote size={12} />
-          <span>深入搜索摘要</span>
-        </div>
-        <div className="space-y-4">
-          {data.slice(0, 3).map((item, idx) => (
-            <div key={idx} className="space-y-1.5">
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] w-4 h-4 flex items-center justify-center bg-muted text-muted-foreground rounded font-mono">
-                  {idx + 1}
-                </span>
-                <h5 className="text-[13px] font-semibold text-foreground">
-                  {item.title}
-                </h5>
-              </div>
-              <p className="text-[12px] leading-relaxed text-muted-foreground line-clamp-3 pl-6">
-                {item.content}
-              </p>
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }

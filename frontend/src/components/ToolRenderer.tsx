@@ -5,6 +5,8 @@ import { WeatherResult } from "./tools/WeatherResult";
 import { TimeResult } from "./tools/TimeResult";
 import { CalcResult } from "./tools/CalcResult";
 import { SearchResult } from "./tools/SearchResult";
+import { ChartResult } from "./tools/ChartResult";
+import { AlgorithmSceneResult } from "./tools/AlgorithmSceneResult";
 
 // 工具名称到组件的映射表 (Registry)
 const TOOL_COMPONENTS: Record<
@@ -16,6 +18,8 @@ const TOOL_COMPONENTS: Record<
   calculate: CalcResult,
   tavily_search: SearchResult,
   tavily_research: SearchResult,
+  render_chart: ChartResult,
+  render_algorithm_scene: AlgorithmSceneResult,
 };
 
 // 工具调用的"思考中"话术阶段
@@ -33,6 +37,10 @@ interface ToolRendererProps {
   state: "call" | "result";
   args: any;
   result?: any;
+}
+
+function shouldKeepToolExpanded(toolName: string) {
+  return toolName === "render_chart" || toolName === "render_algorithm_scene";
 }
 
 // 模块级缓存，确保组件卸载重装时耗时数据不丢失
@@ -63,10 +71,11 @@ export function ToolRenderer({
   args,
   result,
 }: ToolRendererProps) {
+  const keepExpanded = shouldKeepToolExpanded(toolName);
   const [elapsed, setElapsed] = useState<number>(0);
   const [phaseIdx, setPhaseIdx] = useState(0);
   const [isExpanded, setIsExpanded] = useState(
-    () => !autoCollapsedIds.has(toolCallId),
+    () => keepExpanded || !autoCollapsedIds.has(toolCallId),
   );
 
   // 检查缓存
@@ -78,7 +87,11 @@ export function ToolRenderer({
 
   // 工具执行完毕后延迟 50ms 自动收起（仅首次）
   useEffect(() => {
-    if (state === "result" && !autoCollapsedIds.has(toolCallId)) {
+    if (
+      state === "result" &&
+      !keepExpanded &&
+      !autoCollapsedIds.has(toolCallId)
+    ) {
       const t = setTimeout(() => {
         trimCache();
         autoCollapsedIds.add(toolCallId);
@@ -86,7 +99,7 @@ export function ToolRenderer({
       }, 50);
       return () => clearTimeout(t);
     }
-  }, [state, toolCallId]);
+  }, [keepExpanded, state, toolCallId]);
 
   // 1. 计时器与阶段切换
   useEffect(() => {
