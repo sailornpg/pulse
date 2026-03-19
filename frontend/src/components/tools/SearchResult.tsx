@@ -213,9 +213,9 @@ export function SearchResult({ result, args }: SearchResultProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3 rounded-2xl border border-emerald-500/15 bg-[linear-gradient(180deg,rgba(16,185,129,0.08),rgba(16,185,129,0.02))] px-4 py-3">
+      <div className="flex items-center justify-between gap-3 rounded-2xl border border-primary/15 bg-[linear-gradient(180deg,hsl(var(--primary)/0.09),hsl(var(--primary)/0.025))] px-4 py-3">
         <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-emerald-500/20 bg-emerald-500/10 text-emerald-500">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-primary/15 bg-primary/10 text-primary">
             <Search size={16} />
           </div>
           <div className="min-w-0">
@@ -228,7 +228,7 @@ export function SearchResult({ result, args }: SearchResultProps) {
             </div>
           </div>
         </div>
-        <div className="hidden items-center gap-1.5 rounded-full border border-emerald-500/15 bg-background/70 px-3 py-1 text-[10px] font-medium text-emerald-600 dark:text-emerald-300 sm:flex">
+        <div className="hidden items-center gap-1.5 rounded-full border border-primary/15 bg-background/70 px-3 py-1 text-[10px] font-medium text-primary sm:flex">
           <Sparkles size={11} />
           <span>Tavily Search</span>
         </div>
@@ -244,10 +244,10 @@ export function SearchResult({ result, args }: SearchResultProps) {
               href={item.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="group block rounded-2xl border border-border bg-muted/25 p-4 transition-colors duration-200 hover:border-emerald-500/25 hover:bg-accent/30"
+              className="group block rounded-2xl border border-border bg-muted/25 p-4 transition-colors duration-200 hover:border-primary/20 hover:bg-accent/30"
             >
               <div className="flex items-start gap-3">
-                <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border bg-background text-[11px] font-semibold text-muted-foreground group-hover:border-emerald-500/20 group-hover:text-emerald-500">
+                <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-border bg-background text-[11px] font-semibold text-muted-foreground group-hover:border-primary/20 group-hover:text-primary">
                   {idx + 1}
                 </div>
 
@@ -263,19 +263,19 @@ export function SearchResult({ result, args }: SearchResultProps) {
                       </span>
                     ) : null}
                     {typeof item.score === "number" ? (
-                      <span className="inline-flex rounded-full border border-emerald-500/15 bg-emerald-500/8 px-2.5 py-1 text-[10px] text-emerald-700 dark:text-emerald-300">
+                      <span className="inline-flex rounded-full border border-primary/15 bg-primary/10 px-2.5 py-1 text-[10px] text-primary">
                         相关度 {item.score.toFixed(2)}
                       </span>
                     ) : null}
                   </div>
 
                   <div className="flex items-start justify-between gap-3">
-                    <h4 className="min-w-0 text-[14px] font-semibold leading-6 text-foreground transition-colors group-hover:text-emerald-600 dark:group-hover:text-emerald-300">
+                    <h4 className="min-w-0 text-[14px] font-semibold leading-6 text-foreground transition-colors group-hover:text-primary">
                       {item.title}
                     </h4>
                     <ExternalLink
                       size={14}
-                      className="mt-1 shrink-0 text-muted-foreground transition-colors group-hover:text-emerald-500"
+                      className="mt-1 shrink-0 text-muted-foreground transition-colors group-hover:text-primary"
                     />
                   </div>
 

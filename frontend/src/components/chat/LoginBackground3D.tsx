@@ -61,7 +61,7 @@ function PulseNetwork() {
       {/* 渲染线框，表现网络连接感 */}
       <mesh ref={meshRef} geometry={geometry}>
         <meshBasicMaterial 
-          color="#059669" // emerald-600
+          color="#2f8f73"
           wireframe 
           transparent 
           opacity={0.15} 
@@ -73,7 +73,7 @@ function PulseNetwork() {
       <points ref={pointsRef} geometry={geometry}>
         <pointsMaterial 
           size={0.06} 
-          color="#34d399" // emerald-400
+          color="#8fd6bd"
           transparent 
           opacity={0.8}
           blending={THREE.AdditiveBlending}

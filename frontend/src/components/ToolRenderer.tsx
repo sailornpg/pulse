@@ -131,27 +131,27 @@ export function ToolRenderer({
   // 1. 加载状态展示
   if (state === "call") {
     return (
-      <div className="mt-4 p-5 bg-muted/50 backdrop-blur-md rounded-2xl border border-emerald-500/20 shadow-sm flex flex-col gap-4">
+      <div className="mt-4 flex flex-col gap-4 rounded-2xl border border-primary/15 bg-background/68 p-5 shadow-[0_18px_40px_-30px_hsl(var(--foreground)/0.28)] backdrop-blur-xl">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="relative">
-              <Loader2 className="animate-spin text-emerald-500" size={20} />
+              <Loader2 className="animate-spin text-primary" size={20} />
               <Zap
                 size={10}
-                className="absolute inset-0 m-auto text-emerald-400 animate-pulse"
+                className="absolute inset-0 m-auto text-primary/80 animate-pulse"
               />
             </div>
             <div className="flex flex-col">
               <span className="text-sm font-semibold text-foreground/90">
                 PULSE 正在操作:{" "}
-                <span className="text-emerald-500">{toolName}</span>
+                <span className="text-primary">{toolName}</span>
               </span>
               <span className="text-[11px] text-muted-foreground font-mono animate-pulse">
                 {THINKING_PHASES[phaseIdx]}
               </span>
             </div>
           </div>
-          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-500/10 rounded-lg border border-emerald-500/20 text-[10px] text-emerald-500 font-mono">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-primary/10 rounded-lg border border-primary/15 text-[10px] text-primary font-mono">
             <Clock
               size={10}
               className="animate-spin"
@@ -164,7 +164,7 @@ export function ToolRenderer({
         {/* 模拟进度条 */}
         <div className="w-full h-1 bg-muted rounded-full overflow-hidden">
           <div
-            className="h-full bg-emerald-500/50 transition-all duration-500 ease-out"
+            className="h-full bg-primary/55 transition-all duration-500 ease-out"
             style={{
               width: `${Math.min((phaseIdx + 1) * 20 + (elapsed % 2) * 5, 98)}%`,
             }}
@@ -186,7 +186,7 @@ export function ToolRenderer({
           className="w-full flex items-center justify-between p-5 text-left group"
         >
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500 border border-emerald-500/20 shrink-0">
+            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary border border-primary/15 shrink-0">
               <CheckCircle2 size={16} />
             </div>
             <div>

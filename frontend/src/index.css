@@ -4,78 +4,86 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
+    --background: 150 30% 98%;
+    --foreground: 160 18% 18%;
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
+    --card-foreground: 160 18% 18%;
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 240 5.9% 10%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
+    --popover-foreground: 160 18% 18%;
+    --primary: 154 34% 43%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 150 24% 95%;
+    --secondary-foreground: 160 15% 22%;
+    --muted: 150 20% 96%;
+    --muted-foreground: 160 9% 43%;
+    --accent: 150 21% 94%;
+    --accent-foreground: 160 17% 24%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 240 10% 3.9%;
+    --border: 150 16% 87%;
+    --input: 150 16% 87%;
+    --ring: 154 28% 58%;
     --radius: 0.75rem;
+    --app-background-overlay:
+      radial-gradient(circle at top, rgba(110, 231, 183, 0.10), transparent 38%),
+      radial-gradient(circle at 82% 14%, rgba(191, 219, 254, 0.10), transparent 26%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.84), rgba(247, 250, 249, 0.92));
     --markdown-code-border: rgba(16, 185, 129, 0.12);
     --markdown-code-header-border: rgba(16, 185, 129, 0.12);
     --markdown-code-bg: linear-gradient(
       180deg,
-      rgba(16, 185, 129, 0.03),
-      rgba(248, 250, 252, 0.96)
+      rgba(16, 185, 129, 0.025),
+      rgba(251, 253, 252, 0.98)
     );
     --markdown-code-header-bg: linear-gradient(
       180deg,
-      rgba(16, 185, 129, 0.08),
-      rgba(255, 255, 255, 0.82)
+      rgba(16, 185, 129, 0.06),
+      rgba(255, 255, 255, 0.86)
     );
-    --markdown-code-body-bg: rgba(255, 255, 255, 0.52);
-    --markdown-code-label: rgba(6, 95, 70, 0.88);
-    --markdown-code-shadow: 0 18px 48px -28px rgba(15, 23, 42, 0.14);
+    --markdown-code-body-bg: rgba(255, 255, 255, 0.62);
+    --markdown-code-label: rgba(6, 78, 59, 0.8);
+    --markdown-code-shadow: 0 18px 48px -28px rgba(15, 23, 42, 0.1);
   }
 
   .dark {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 240 5.9% 10%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
+    --background: 164 26% 9%;
+    --foreground: 150 18% 95%;
+    --card: 164 22% 11%;
+    --card-foreground: 150 18% 95%;
+    --popover: 164 22% 11%;
+    --popover-foreground: 150 18% 95%;
+    --primary: 152 38% 68%;
+    --primary-foreground: 164 30% 10%;
+    --secondary: 164 16% 15%;
+    --secondary-foreground: 150 16% 93%;
+    --muted: 164 16% 14%;
+    --muted-foreground: 154 10% 68%;
+    --accent: 164 16% 16%;
+    --accent-foreground: 150 16% 94%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 240 4.9% 83.9%;
-    --markdown-code-border: rgba(16, 185, 129, 0.16);
+    --border: 164 12% 20%;
+    --input: 164 12% 20%;
+    --ring: 152 32% 63%;
+    --app-background-overlay:
+      radial-gradient(circle at top, rgba(52, 211, 153, 0.10), transparent 42%),
+      radial-gradient(circle at 82% 14%, rgba(96, 165, 250, 0.08), transparent 30%),
+      linear-gradient(180deg, rgba(9, 16, 14, 0.66), rgba(8, 14, 12, 0.92));
+    --markdown-code-border: rgba(110, 231, 183, 0.14);
     --markdown-code-header-border: rgba(16, 185, 129, 0.12);
     --markdown-code-bg: linear-gradient(
       180deg,
-      rgba(16, 185, 129, 0.08),
-      rgba(5, 24, 19, 0.94)
+      rgba(52, 211, 153, 0.05),
+      rgba(8, 19, 16, 0.94)
     );
     --markdown-code-header-bg: linear-gradient(
       180deg,
-      rgba(16, 185, 129, 0.1),
-      rgba(6, 78, 59, 0.22)
+      rgba(52, 211, 153, 0.08),
+      rgba(9, 48, 38, 0.18)
     );
-    --markdown-code-body-bg: rgba(3, 18, 14, 0.58);
-    --markdown-code-label: rgba(209, 250, 229, 0.9);
-    --markdown-code-shadow: 0 18px 48px -28px rgba(6, 78, 59, 0.34);
+    --markdown-code-body-bg: rgba(7, 18, 15, 0.56);
+    --markdown-code-label: rgba(220, 252, 231, 0.86);
+    --markdown-code-shadow: 0 18px 48px -28px rgba(7, 29, 22, 0.34);
   }
 }
 
@@ -86,6 +94,8 @@
   body {
     @apply bg-background text-foreground antialiased selection:bg-primary/10 selection:text-primary;
     font-feature-settings: "rlig" 1, "calt" 1;
+    background-image: var(--app-background-overlay);
+    background-attachment: fixed;
   }
 }
 
@@ -160,7 +170,7 @@
 }
 
 .prose a {
-  @apply text-emerald-500 hover:text-emerald-400 transition-colors underline underline-offset-4 decoration-emerald-500/30;
+  @apply text-primary hover:text-primary/80 transition-colors underline underline-offset-4 decoration-primary/30;
 }
 
 .prose hr {

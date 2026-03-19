@@ -59,10 +59,10 @@ export function Sidebar({
 
   return (
     <aside
-      className={`bg-background border-r border-border flex flex-col hidden md:flex shrink-0 transition-all duration-300 ${sidebarCollapsed ? "w-0 overflow-hidden" : "w-72"}`}
+      className={`border-r border-border bg-background/84 backdrop-blur-xl flex flex-col hidden md:flex shrink-0 transition-all duration-300 ${sidebarCollapsed ? "w-0 overflow-hidden" : "w-72"}`}
     >
       {!sidebarCollapsed && (
-        <div className="h-16 flex items-center px-4 border-b border-border bg-background/50 backdrop-blur-sm sticky top-0 z-20">
+        <div className="h-16 flex items-center px-4 border-b border-border bg-background/72 backdrop-blur-xl sticky top-0 z-20">
           <div className="flex items-center gap-3">
             <div
               className="flex items-center justify-center"
@@ -74,7 +74,7 @@ export function Sidebar({
               <h1 className="text-sm font-bold text-foreground tracking-tight">
                 PULSE AI
               </h1>
-              <span className="text-[10px] text-emerald-500 font-mono font-medium tracking-widest opacity-80 uppercase">
+              <span className="text-[10px] text-primary font-mono font-medium tracking-widest opacity-80 uppercase">
                 v2.5.0
               </span>
             </div>
@@ -89,7 +89,7 @@ export function Sidebar({
         >
           <Plus
             size={16}
-            className="text-muted-foreground group-hover:text-emerald-500 transition-colors"
+            className="text-muted-foreground group-hover:text-primary transition-colors"
           />
           {!sidebarCollapsed && <span className="font-medium">新对话</span>}
         </Button>
@@ -120,8 +120,8 @@ export function Sidebar({
                       size={14}
                       className={
                         currentConversationId === conv.id
-                          ? "text-emerald-500 shrink-0"
-                          : "text-muted-foreground/60 group-hover:text-emerald-500/70 shrink-0"
+                          ? "text-primary shrink-0"
+                          : "text-muted-foreground/60 group-hover:text-primary/70 shrink-0"
                       }
                     />
                     <div className="flex-1 min-w-0">
@@ -168,7 +168,7 @@ export function Sidebar({
       <div className="p-4 mt-auto">
         {token && user ? (
           <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-2xl border border-border hover:border-accent transition-colors group">
-            <Avatar className="h-10 w-10 border border-border group-hover:border-emerald-500/30 transition-colors">
+            <Avatar className="h-10 w-10 border border-border group-hover:border-primary/25 transition-colors">
               <AvatarFallback className="bg-muted text-muted-foreground text-xs font-bold">
                 {getUserInitial(user.email)}
               </AvatarFallback>

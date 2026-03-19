@@ -1,13 +1,13 @@
-import { LogOut, Settings } from "lucide-react"
-import { cn } from "@/lib/utils"
-import type { SettingsTab, SettingsTabId } from "./types"
+import { LogOut, Settings } from "lucide-react";
+import { cn } from "@/lib/utils";
+import type { SettingsTab, SettingsTabId } from "./types";
 
 interface SettingsNavProps {
-  tabs: SettingsTab[]
-  activeTab: SettingsTabId
-  onChange: (tab: SettingsTabId) => void
-  showLogout: boolean
-  onLogout: () => void | Promise<void>
+  tabs: SettingsTab[];
+  activeTab: SettingsTabId;
+  onChange: (tab: SettingsTabId) => void;
+  showLogout: boolean;
+  onLogout: () => void | Promise<void>;
 }
 
 export function SettingsNav({
@@ -33,7 +33,7 @@ export function SettingsNav({
             type="button"
             onClick={() => onChange(tab.id)}
             className={cn(
-              "flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm transition-colors",
+              "flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-sm transition-colors mb-2",
               activeTab === tab.id
                 ? "bg-accent text-accent-foreground shadow-sm"
                 : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
@@ -42,7 +42,9 @@ export function SettingsNav({
             <tab.icon
               className={cn(
                 "h-4 w-4 shrink-0",
-                activeTab === tab.id ? "text-emerald-500" : "text-muted-foreground",
+                activeTab === tab.id
+                  ? "text-emerald-500"
+                  : "text-muted-foreground",
               )}
             />
             <span className="truncate font-medium">{tab.label}</span>
@@ -63,5 +65,5 @@ export function SettingsNav({
         </div>
       ) : null}
     </aside>
-  )
+  );
 }

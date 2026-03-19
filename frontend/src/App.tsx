@@ -14,9 +14,9 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
-        <div className="flex items-center gap-3 text-zinc-500">
-          <Loader2 size={20} className="animate-spin text-emerald-500" />
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="flex items-center gap-3 text-muted-foreground">
+          <Loader2 size={20} className="animate-spin text-primary" />
           <span className="text-sm font-medium">加载中...</span>
         </div>
       </div>

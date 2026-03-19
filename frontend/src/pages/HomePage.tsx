@@ -228,7 +228,7 @@ export default function HomePage() {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="flex items-center gap-3 text-muted-foreground">
-          <Loader2 size={20} className="animate-spin text-emerald-500" />
+          <Loader2 size={20} className="animate-spin text-primary" />
           <span className="text-sm font-medium">加载中...</span>
         </div>
       </div>
@@ -237,7 +237,7 @@ export default function HomePage() {
 
   return (
     <>
-      <div className="flex h-screen bg-background text-foreground overflow-hidden font-sans selection:bg-emerald-500/10 selection:text-emerald-400">
+      <div className="flex h-screen bg-background text-foreground overflow-hidden font-sans">
         <Sidebar
           sidebarCollapsed={sidebarCollapsed}
           token={token}
@@ -265,7 +265,7 @@ export default function HomePage() {
               <div className="absolute inset-0 flex items-center justify-center bg-background/50 backdrop-blur-sm z-10">
                 <div className="flex items-center gap-3 text-muted-foreground px-4 py-3 rounded-xl">
                   <Loader2
-                    className="animate-spin text-emerald-500"
+                    className="animate-spin text-primary"
                     size={18}
                   />
                   <span className="text-sm font-medium">加载中...</span>
