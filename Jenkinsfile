@@ -53,7 +53,7 @@ pipeline {
           mkdir -p ${DEPLOY_ROOT}/backend/current
           cp -r ${WORKSPACE}/* ${DEPLOY_ROOT}/backend/current/
           cd ${DEPLOY_ROOT}/backend/current
-          docker compose -f docker-compose.prod.yml up -d --build
+          docker-compose -f docker-compose.prod.yml up -d --build
         '''
       }
     }
