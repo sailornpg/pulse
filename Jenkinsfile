@@ -32,7 +32,7 @@ pipeline {
       steps {
         dir("${BACKEND_DIR}") {
           sh 'npm ci'
-          sh 'npx tsc --noEmit -p tsconfig.json'
+          sh 'npm run build'
         }
       }
     }
