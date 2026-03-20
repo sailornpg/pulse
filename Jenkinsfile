@@ -8,6 +8,10 @@ pipeline {
     VITE_API_URL = 'http://api.sailornpg.site'
   }
 
+  tools {
+    nodejs 'node20'
+  }
+
   stages {
     stage('Checkout') {
       steps {
@@ -61,7 +65,4 @@ pipeline {
     }
   }
 
-  tools {
-  nodejs 'node18'
-}
 }
