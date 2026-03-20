@@ -60,4 +60,8 @@ pipeline {
       }
     }
   }
+
+  tools {
+  nodejs 'node18'
+}
 }
