@@ -5,3 +5,4 @@ node_modules
 .agents
 .trae
 dist
+backend/logs
