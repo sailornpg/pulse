@@ -5,7 +5,9 @@
   "main": "dist/main.js",
   "scripts": {
     "start": "nest start",
-    "start:dev": "nest start --watch"
+    "start:dev": "nest start --watch",
+    "build": "nest build",
+    "start:prod": "node dist/main.js"
   },
   "dependencies": {
     "@ai-sdk/deepseek": "^0.1.17",

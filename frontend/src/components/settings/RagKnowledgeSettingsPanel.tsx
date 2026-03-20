@@ -669,7 +669,7 @@ export function RagKnowledgeSettingsPanel({
   }
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_minmax(20rem,0.95fr)]">
+    <div className="grid gap-4">
       <div className="space-y-4">
         {message ? (
           <div
