@@ -1,0 +1,10 @@
+services:
+  pulse-backend:
+    build:
+      context: /srv/pulse/backend/current/backend
+    container_name: pulse-backend
+    restart: unless-stopped
+    env_file:
+      - /srv/pulse/backend/.env.production
+    ports:
+      - "127.0.0.1:3001:3001"
