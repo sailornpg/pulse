@@ -77,6 +77,7 @@ SUPABASE_URL=your_supabase_project_url
 SUPABASE_ANON_KEY=your_supabase_anon_key
 SUPABASE_SERVICE_ROLE_KEY=required_for_default_rag_documents
 RAG_ADMIN_KEY=required_for_default_rag_documents_api
+CORS_ORIGIN=http://app.sailornpg.site
 ```
 
 如果你要启用 RAG 或结构化记忆的语义召回，优先配置 `EMBEDDING_API_KEY`、`EMBEDDING_MODEL` 与可选的 `EMBEDDING_BASE_URL`。当前实现使用 OpenAI 兼容 embedding 接口，因此可以接 OpenAI，也可以接支持兼容协议的国内服务或自建推理服务。

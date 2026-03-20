@@ -9,14 +9,32 @@ import {
   registerProcessEventHandlers,
 } from "./common/logger/logger.service";
 
+function parseCorsOrigins() {
+  return (process.env.CORS_ORIGIN || "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+}
+
 async function bootstrap() {
   dotenv.config();
   const appLogger = new AppLogger("Bootstrap");
   AppLogger.installConsoleBridge();
+  const allowedOrigins = parseCorsOrigins();
 
   const app = await NestFactory.create(AppModule, { bufferLogs: true });
   app.useLogger(appLogger);
-  app.enableCors();
+  app.enableCors({
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error(`Origin ${origin} is not allowed by CORS`));
+    },
+    credentials: true,
+  });
   app.enableShutdownHooks();
 
   app.use(passport.initialize());
@@ -36,12 +54,16 @@ async function bootstrap() {
   await app.listen(port, "0.0.0.0");
   appLogger.logSystemEvent("backend_started", {
     port,
+    corsOrigins: allowedOrigins,
     logDir: process.env.LOG_DIR || "logs",
   });
 }
 
 bootstrap().catch((error) => {
   const logger = new AppLogger("Bootstrap");
-  logger.fatal("Application bootstrap failed", error instanceof Error ? error.stack : undefined);
+  logger.fatal(
+    "Application bootstrap failed",
+    error instanceof Error ? error.stack : undefined,
+  );
   process.exit(1);
 });
